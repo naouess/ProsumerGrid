@@ -1,4 +1,4 @@
-module PowerNodes
+module ProsumerGrid
 
 greet() = print("Hello World!")
 
