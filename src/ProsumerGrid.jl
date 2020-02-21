@@ -1,5 +1,5 @@
 module ProsumerGrid
 
-greet() = print("Hello World!")
+# Beginning of code 
 
 end # module
