@@ -4,5 +4,5 @@ and vertices (Nodes)
 
 """
 struct ProsumerGrid()
-    # using LightGraphs 
+
 end
