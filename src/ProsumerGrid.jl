@@ -1,5 +1,9 @@
 module ProsumerGrid
+"""
+# ? Define three domains (as in Power Node Framework):
+# ?
+"""
 
-# Beginning of code 
+include() # all files
 
 end # module
