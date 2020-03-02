@@ -1,3 +1,2 @@
-abstract type Line()
-
+abstract type Line
 end # type

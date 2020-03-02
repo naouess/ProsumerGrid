@@ -1,3 +1,3 @@
-abstract type Node()
+abstract type Node
 
 end
