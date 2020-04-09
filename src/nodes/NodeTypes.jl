@@ -1,5 +1,14 @@
-@PowerNode (PV::Component)()
+@PowerNode PV(parameters) begin
 end
 
-@PowerNode (Battery::Component)()
+export PV
+
+@PowerNode Battery(parameters) begin
 end
+
+export Battery
+
+@PowerNode Load(parameters) begin
+end
+
+export Load
