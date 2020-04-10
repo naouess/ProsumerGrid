@@ -28,10 +28,10 @@ mutable struct GenericComponent{T} <: AbstractComponent
     η_gen	# Generation efficiency
     u_load	# Power taken from the grid at node level
     u_gen 	# Power fed into the grid at node level
-	du_load	# Ramp
-	du_gen 	# Ramp
+    du_load	# Ramp
+    du_gen 	# Ramp
     l		# State of charge (level)
-	dl		# Change in state of charge in time
+    dl		# Change in state of charge in time
     ξ		# Provided or demanded energy (depending on sign) => Energy exchange with environment
     w		# Spilled energy or unserved (shedded) load
     v		# Storage losses
@@ -101,7 +101,7 @@ function buildstruct_component(name, parameters)
         Expr(:block, parameters..., # set all the parmeters as fields in the struct
             Expr(:(=), # define the constructor
                 Expr(:call, name, Expr(:parameters, parameters... )),
-                Expr(:call, :new,  parameters...)) 
+                Expr(:call, :new,  parameters...))
     )
 	# This function returns a piece of code that generate an expression
 	# Still unclear how to evaluate this to create the struct at runtime, so that
