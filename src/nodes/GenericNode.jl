@@ -49,7 +49,8 @@ end
 function main_equation_component(component <: AbstractComponent)
 	# Definition of main equation here
 	# ? dl needs broadcast ?
-	@. component.dl = () / component.C
+	@. component.dl = (# Write rhs of equation here
+						) / component.C
 
 	# use quote end ?
 	quote
