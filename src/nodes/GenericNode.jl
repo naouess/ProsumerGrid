@@ -21,7 +21,8 @@ using Parameters
 # ? @with_kw in what way does this differ from just accessing the fields by .field_name ?
 # ? Use parametric struct to differentiate if some parameters are passed as constants (single values)
 # or as time series ?
-mutable struct GenericComponent{T} <: AbstractComponent where T
+# Parametric struct => T depends ond whether inputs are constants or time series
+mutable struct GenericComponent{T} <: AbstractComponent
     C		# Storage capacity
     η_load	# Load conversion efficiency
     η_gen	# Generation efficiency
@@ -97,13 +98,16 @@ function buildstruct_component(name, parameters)
 	struct_def = Expr(
         :struct, false, # why is this second argument needed?
         :($name <: AbstractComponent),
-        Expr(:block, parameters...) # set all the parmeters as fields in the struct
+        Expr(:block, parameters..., # set all the parmeters as fields in the struct
+            Expr(:(=), # define the constructor
+                Expr(:call, name, Expr(:parameters, parameters... )),
+                Expr(:call, :new,  parameters...)) 
     )
 	# This function returns a piece of code that generate an expression
 	# Still unclear how to evaluate this to create the struct at runtime, so that
 	# typeof(struct_def) is DataType (CompositeType)
 
-	# ? How to define an inner consructor using quoting
+	# ? How to define an inner consructor using quoting => see above! :)
 end
 
 # Example of struct definition
