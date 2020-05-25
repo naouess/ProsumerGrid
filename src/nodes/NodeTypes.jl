@@ -1,3 +1,9 @@
+###
+# Will be trying out stuff here, to integrate heterogeneous node model without
+# using PowerDynamics
+###
+ 
+# Needed parts of experiments.jl
 begin
 	using Random # random numbers
 	using LightGraphs # create network topologies
