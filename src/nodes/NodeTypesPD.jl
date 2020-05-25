@@ -15,7 +15,7 @@ import PowerDynamics: AbstractNode
 import PowerDynamics: showdefinition
 
 @DynamicNode PV(ξ, η, u, M) begin
-    #MassMatrix() ???
+    #MassMatrix() ??
 end begin
     # [all prepratory things that need to be run just once]
     @. w = ξ - (u.LI + u.ILC)
@@ -33,7 +33,7 @@ end [[ω, dω]] begin
 end
 
 @DynamicNode Load(ξ, η, u, M) begin
-    #MassMatrix()???
+    #MassMatrix() ??
 end begin
     @. w = ξ - (u.LI + u.ILC)
     @assert ξ .* w >= 0 "ξ and w must have the same sign, according to the defined sign convention"
@@ -48,7 +48,7 @@ end [[ω, dω]] begin
 end
 
 @DynamicNode Battery(ξ, η, u, M, C) begin
-    #MassMatrix()???
+    #MassMatrix() ??
 end begin
     @. w = ξ - (u.LI + u.ILC)
     @assert ξ .* w >= 0 "ξ and w must have the same sign, according to the defined sign convention"
@@ -61,7 +61,7 @@ end [[ω, dω], [l, dl]] begin
     # conditional on the sign of F?
     P.gen = (u.LI + u.ILC) * η.gen
     P.load = (u.LI + u.ILC) / η.load
-    # ? Can this be defined like this?
+    # ? Can du be defined like this?
     du = 0
     dl = (η.load * P.load - P.gen / η.gen) / C
     F = i # since i is the variable for the flows as defined in NodeMacro.jl
