@@ -1,8 +1,8 @@
 ###
-# Will be trying out stuff here, to integrate heterogeneous node model without
+# Here trying out a few things to integrate heterogeneous node model without
 # using PowerDynamics
 ###
- 
+
 # Needed parts of experiments.jl
 begin
 	using Random # random numbers
