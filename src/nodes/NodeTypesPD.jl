@@ -1,8 +1,8 @@
 #=
 TODO:
 [̌] Check where a broadcast is necessary (parameter and variable types)
-[] Define MassMatrix correctly: u has no mass, whereas ω does.
-[] Test definition of nodes, once the power flow equation is integrated.
+[x] Define MassMatrix correctly
+[] Test definition of nodes, once the power flow equation is integrated
 =#
 
 using PowerDynamics
@@ -15,12 +15,12 @@ import PowerDynamics: AbstractNode
 import PowerDynamics: showdefinition
 
 @DynamicNode PV(ξ, η, u, M) begin
-    #MassMatrix() ??
+    MassMatrix(; m_u = false, m_int = [true])
 end begin
     # [all prepratory things that need to be run just once]
-    @. w = ξ - (u.LI + u.ILC)
-    @assert ξ .* w >= 0 "ξ and w must have the same sign, according to the defined sign convention"
-    @assert abs(ξ) .- abs(w) >= 0 "ξ always bigger than w"
+    w = ξ - (u.LI + u.ILC)
+    @assert ξ * w >= 0 "ξ and w must have the same sign, according to the defined sign convention"
+    @assert abs(ξ) - abs(w) >= 0 "ξ always bigger than w"
     @assert η in [0.0, 1.0]
     # define P as struct?
     P.gen = []
@@ -33,11 +33,11 @@ end [[ω, dω]] begin
 end
 
 @DynamicNode Load(ξ, η, u, M) begin
-    #MassMatrix() ??
+    MassMatrix(; m_u = false, m_int = [true])
 end begin
-    @. w = ξ - (u.LI + u.ILC)
-    @assert ξ .* w >= 0 "ξ and w must have the same sign, according to the defined sign convention"
-    @assert abs(ξ) .- abs(w) >= 0 "ξ always bigger than w"
+    w = ξ - (u.LI + u.ILC)
+    @assert ξ * w >= 0 "ξ and w must have the same sign, according to the defined sign convention"
+    @assert abs(ξ) - abs(w) >= 0 "ξ always bigger than w"
     @assert η in [0.0, 1.0]
     # define P as struct?
     P.load = []
@@ -48,11 +48,11 @@ end [[ω, dω]] begin
 end
 
 @DynamicNode Battery(ξ, η, u, M, C) begin
-    #MassMatrix() ??
+    MassMatrix(; m_u = false, m_int = [true, true])
 end begin
-    @. w = ξ - (u.LI + u.ILC)
-    @assert ξ .* w >= 0 "ξ and w must have the same sign, according to the defined sign convention"
-    @assert abs(ξ) .- abs(w) >= 0 "ξ always bigger than w"
+    w = ξ - (u.LI + u.ILC)
+    @assert ξ * w >= 0 "ξ and w must have the same sign, according to the defined sign convention"
+    @assert abs(ξ) - abs(w) >= 0 "ξ always bigger than w"
     @assert η in [0.0, 1.0]
     P.load = []
     P.gen = []
@@ -66,5 +66,4 @@ end [[ω, dω], [l, dl]] begin
     dl = (η.load * P.load - P.gen / η.gen) / C
     F = i # since i is the variable for the flows as defined in NodeMacro.jl
     dω = (P.gen - P.load - F) / M
-
 end
