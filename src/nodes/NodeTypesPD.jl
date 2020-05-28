@@ -11,8 +11,7 @@ using PowerDynamics
 # more proper way to define custom nodes without having to use these imports:
 # Follow up on this (see thread here: https://github.com/JuliaEnergy/PowerDynamics.jl/issues/71)
 import Base: @__doc__
-import PowerDynamics: AbstractNode
-import PowerDynamics: showdefinition
+import PowerDynamics: AbstractNode, showdefinition, AbstractLine
 
 @DynamicNode PV(ξ, η, u, M) begin
     MassMatrix(; m_u = false, m_int = [true])
