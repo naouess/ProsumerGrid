@@ -25,8 +25,8 @@ function create_line(name, prep, parameters, func_body)
     rhscall = :(rhs!(e,v_s,v_d,p,t))
     rhsbody = quote end
     rhsbody.args[1] = func_body.args[1]
-    append!(rhsbody.args, [:(source_ω = v_s[1])])
-    append!(rhsbody.args, [:(destination_ω = v_d[1])])
+    append!(rhsbody.args, [:(source_ϕ = v_s[3])])
+    append!(rhsbody.args, [:(destination_ϕ = v_d[3])])
     append!(rhsbody.args, func_body.args)
 
     es = [:(e[1] = F_ij_vector[1])]
