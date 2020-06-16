@@ -6,7 +6,7 @@ begin
 	# ? Why use this?
 	Pkg.instantiate()
 	using PowerDynamics
-    using NetworkDynamics
+	using NetworkDynamics
 
 	# TODO remove unneeded imports
 	import PowerDynamics: dimension, symbolof, construct_vertex, construct_edge
@@ -61,7 +61,7 @@ lines=[PowerLine(from=1,to=2,K=6), PowerLine(from=2,to=3,K=6), PowerLine(from=1,
 
 powergrid = PowerGrid(nodes,lines)
 
-# TODO: could be avoided.
+# TODO: these lines could be avoided: see issue #71
 begin
 	dimension(myPV)
 	symbolsof(myPV)
@@ -77,7 +77,44 @@ systemsize(powergrid)
 # Error occurs here:
 # BoundsError: attempt to access 14-element Array{Float64,1} at index [15]
 operationpoint = find_operationpoint(powergrid)
-# solution = simulate(LineFault(), powergrid, operationpoint, timespan = (0.0,100.0))
-# PowerDynSolve.solve # ?
 
+### ILC control algorithm
+# Now putting all things together and defining the ODE
+nd = network_dynamics(nodes, lines, powergrid)
+
+begin
+	# Define initial values as ic
+	# ic = ...
+	# Define tspan:
+	tspan = (0., num_days * l_day)
+	ode_problem = ODEProblem(nd, ic, tspan, compound_pars,
+	callback=CallbackSet(PeriodicCallback(HourlyUpdate(), l_hour),
+						 PeriodicCallback(DailyUpdate_X, l_day)))
+end
+
+@time sol = solve(ode_problem, Rodas4())
+
+for i=1:24*num_days+1
+	# get hourly_energy from solver
+	hourly_energy[i] = sol((i-1)*3600)[energy_filter[1]]
+	# hourly_energy[i,2] = sol1((i-1)*3600)[energy_filter[2]]
+	# hourly_energy[i,3] = sol1((i-1)*3600)[energy_filter[3]]
+	# hourly_energy[i,4] = sol1((i-1)*3600)[energy_filter[4]]
+end
+
+# Apply filtering to get ILC energy for the next days
+# ILC_Power is zero for day 1 (day 0, index 1)
+ILC_power = zeros(num_days+2,24,N)
+# ILC_Power for day 2:
+ILC_power[2,:,1] = Q*(zeros(24,1) +  kappa*hourly_energy[1:24,1])
+# ILC_power[2,:,2] = Q*(zeros(24,1) +  kappa*hourly_energy[1:24,2])
+# ILC_power[2,:,3] = Q*(zeros(24,1) +  kappa*hourly_energy[1:24,3])
+# ILC_power[2,:,4] = Q*(zeros(24,1) +  kappa*hourly_energy[1:24,4])
+
+for i=2:num_days
+	ILC_power[i+1,:,1] = Q*(ILC_power[i,:,1] +  kappa*hourly_energy[(i-1)*24+1:i*24,1])
+	# ILC_power[i+1,:,2] = Q*(ILC_power[i,:,2] +  kappa*hourly_energy[(i-1)*24+1:i*24,2])
+	# ILC_power[i+1,:,3] = Q*(ILC_power[i,:,3] +  kappa*hourly_energy[(i-1)*24+1:i*24,3])
+	# ILC_power[i+1,:,4] = Q*(ILC_power[i,:,4] +  kappa*hourly_energy[(i-1)*24+1:i*24,4])
+end
 end
