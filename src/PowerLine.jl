@@ -15,6 +15,7 @@ begin
             source_ϕ = v_s[1]
             destination_ϕ = v_d[1]
             e = K * sin(destination_ϕ - source_ϕ)
+            # e = K * (destination_ϕ - source_ϕ) # linear model
         end
         return StaticEdge(f! = rhs!, dim = 1)
     end
