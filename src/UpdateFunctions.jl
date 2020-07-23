@@ -13,10 +13,11 @@ end
 PeriodicCallback function acting on the `integrator` that is called every simulation hour (t = 1,2,3...).
 """
 function (hu::HourlyUpdate)(integrator)
-	# Here the current hour is extracted using the following line:
+	# The current hour is extracted using the following line:
 	hour = mod(round(Int, integrator.t/3600.), 24) + 1
-	# Needed for indexing (Eine Stunde geht von 0 bis 1, also letzteres nehmen)
+	# Needed for indexing (one hour is from 0 to 1)
 	last_hour = mod(hour-2, 24) + 1
+	println("I'm doing this")
 
 	# the following lines: last hour letzte Stunde auf Integral der Stunde davor setzen
 	for j = 1:N
@@ -33,6 +34,7 @@ function DailyUpdate_X(integrator)
 	for j = 1:N
 		integrator.p[1][j].daily_background_power .= integrator.p[1][j].Q * (integrator.p[1][j].daily_background_power
 		.+ integrator.p[1][j].kappa * integrator.p[1][j].mismatch_yesterday)
+		println("And also this")
 	end
 	nothing
 end
