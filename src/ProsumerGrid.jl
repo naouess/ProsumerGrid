@@ -17,8 +17,9 @@ end
 
 #=
 Minimal example to test out the defined nodes and Powerline
-No ILC solving integrated yet. u is set as a parameter.
 =#
+
+# General parameters
 begin
 	num_days = 35
 	l_day = 24*3600
@@ -38,6 +39,7 @@ begin
 	Q = Toeplitz(Q1[1001:1001+24-1], Q1[1001:1001+24-1]);
 end
 
+# Defining the nodes
 begin
 	myPV = PV(ξ = t -> 1000., η_gen = t -> 1., LI = LI(kp = 400., ki = 0.05, T = 0.04), M = 5.)
 	myLoad = Load(ξ = t -> -1000., η_load = t -> 1., LI = LI(kp = 200., ki = 0.004, T = 0.045), M = 4.8)
@@ -48,7 +50,6 @@ begin
 	v3 = construct_vertex(mySlack)
 	v4 = construct_vertex(myLoad2)
 	nodes = [v1, v2, v3, v4]
-	# nodes = [v1, v2]
 end
 
 begin
@@ -81,27 +82,29 @@ ic = ones(5 * N)
 ILC_pars1 = ILC(kappa = 1/l_hour, mismatch_yesterday = zeros(24), daily_background_power = zeros(24),
 current_background_power = 0., ilc_nodes = vc, ilc_cover = cover, Q = Q)
 
-
+# Defining the callback function
 cb = CallbackSet(PeriodicCallback(HourlyUpdate(), l_hour), PeriodicCallback(DailyUpdate_X, l_day))
-ILC_p = ([ILC_pars1, ILC_pars1, ILC_pars1, ILC_pars1], nothing) # passing first tuple element as parameters for nodes and nothing for lines
+# Passing first tuple element as parameters for nodes and nothing for lines
+ILC_p = ([ILC_pars1, ILC_pars1, ILC_pars1, ILC_pars1], nothing)
+# Defining the ODE-Problem
 ode_problem = ODEProblem(nd, ic, tspan, ILC_p, callback = cb)
 
+@time sol = solve(ode_problem, Rodas4())
 # Other solvers to try out: Rosenbrock23(), Rodas4(autodiff=false)
 # CVODE_BDF() doesn't use mass matrices
 # radau() doesn't have DEOptions (?)
-@time sol = solve(ode_problem, Rodas4())
 
+####
 # Extracting values out of solution found by solver
 hourly_energy = zeros(24 * num_days + 1, N)
 for i = 1:24*num_days+1
 	for j = 1:N
-		# define energy_filter 3N+1:4N
 		hourly_energy[i, j] = sol((i-1)*3600)[4*j]
 	end
 end
 plot(hourly_energy)
 
-# Code for calculating the ILC power needed for a certain number of days
+# ILC power needed for a certain number of days
 ILC_power = zeros(num_days+2, 24, N)
 
 kappa = 1/l_hour
