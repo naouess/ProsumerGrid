@@ -221,6 +221,7 @@ end
 function DailyUpdate_X(integrator)
 	integrator.p.hl.daily_background_power = integrator.p.hl.Q * (integrator.p.hl.daily_background_power
 	+ integrator.p.hl.kappa * integrator.p.hl.mismatch_yesterday)
+	# u_Pv = t -> integrator.p.hl.daily_background_power[:,j] # node j is PV
 	nothing
 end
 

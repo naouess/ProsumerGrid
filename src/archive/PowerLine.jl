@@ -35,7 +35,7 @@ begin
             e[3] = F_ij_vector[2]
             e[4] = 0
         end
-        return StaticEdge(f! = rhs!, dim = 2)
+        return StaticEdge(f! = rhs!, dim = 4)
     end
 end
 

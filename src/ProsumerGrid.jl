@@ -1,120 +1,116 @@
-module ProsumerGrid
-
 begin
-	using Parameters
-	using Pkg
-	# ? Why use this?
-	Pkg.instantiate()
-	using PowerDynamics
-	using NetworkDynamics
-
-	# TODO remove unneeded imports
-	import PowerDynamics: dimension, symbolof, construct_vertex, construct_edge
+	using NetworkDynamics, LightGraphs, Parameters, DifferentialEquations, GraphPlot
+	using Sundials # to use the solver CVODE_BDF()
+	using ODEInterfaceDiffEq # to use the solver radau()
+	using ToeplitzMatrices
+	using DSP
+	using Plots
 end
 
 begin
 	dir = @__DIR__
-	include("$dir/nodes/NodeTypesPD.jl")
-	include("$dir/lines/PowerLine.jl")
-end
-
-@with_kw mutable struct η
-	gen
-	load
-	"""
-	Constructor
-	"""
-	function η(gen, load)
-			new(gen, load)
-	end
-end # TODO: Define outer constructors for η for the cases when only gen or load is defined
-
-@with_kw mutable struct u
-	ILC
-	LI
-	"""
-	Constructor
-	"""
-	function u(ILC, LI)
-			new(ILC, LI)
-	end
+	include("$dir/PowerNodes.jl")
+	include("$dir/PowerLine.jl")
+	include("$dir/structs.jl")
+	include("$dir/UpdateFunctions.jl")
 end
 
 #=
 Minimal example to test out the defined nodes and Powerline
 No ILC solving integrated yet. u is set as a parameter.
 =#
-
-u_PV = u(800., 0.)
-u_load = u(-900.,0.)
-u_slack = u(100.,0.)
-
-myPV = PV(ξ=800., η_gen=1., LI = u_PV.LI, ILC = u_PV.ILC, M=1.)
-myLoad = Load(ξ=-900., η_load = 1., LI = u_load.LI, ILC = u_load.ILC, M=1.)
-mySlack = Slack(ξ=100., η_gen=1., LI = u_slack.LI, ILC = u_slack.ILC, M=1.)
-slack2 = SlackAlgebraic(U=1.) # To avoid triggering warnings
-#Battery = Battery()
-
-nodes = [myPV, myLoad, mySlack, slack2]
-
-lines=[PowerLine(from=1,to=2,K=6), PowerLine(from=2,to=3,K=6), PowerLine(from=1,to=4,K=6)]
-
-powergrid = PowerGrid(nodes,lines)
-
-# TODO: these lines could be avoided: see issue #71
 begin
-	dimension(myPV)
-	symbolsof(myPV)
-
-	dimension(myLoad)
-	symbolsof(myLoad)
-
-	dimension(mySlack)
-	symbolsof(mySlack)
-end
-systemsize(powergrid)
-
-# Error occurs here:
-# BoundsError: attempt to access 14-element Array{Float64,1} at index [15]
-operationpoint = find_operationpoint(powergrid)
-
-### ILC control algorithm
-# Now putting all things together and defining the ODE
-nd = network_dynamics(nodes, lines, powergrid)
-
-begin
-	# Define initial values as ic
-	# ic = ...
-	# Define tspan:
-	tspan = (0., num_days * l_day)
-	ode_problem = ODEProblem(nd, ic, tspan, compound_pars,
-	callback=CallbackSet(PeriodicCallback(HourlyUpdate(), l_hour),
-						 PeriodicCallback(DailyUpdate_X, l_day)))
+	num_days = 35
+	l_day = 24*3600
+	l_hour = 3600
+	N = 4
 end
 
+# Parameters for ILC controller
+begin
+	# Number of ILC-Node (here: without communication)
+	vc = 1:N
+	cover = Dict([v => [] for v in vc])
+	u = [zeros(1000,1);1;zeros(1000,1)];
+	fc = 1/6
+	a = digitalfilter(Lowpass(fc), Butterworth(2))
+	Q1 = filtfilt(a, u) # Markov Parameter
+	Q = Toeplitz(Q1[1001:1001+24-1], Q1[1001:1001+24-1]);
+end
+
+begin
+	myPV = PV(ξ = t -> 1000., η_gen = t -> 1., LI = LI(kp = 400., ki = 0.05, T = 0.04), M = 5.)
+	myLoad = Load(ξ = t -> -1000., η_load = t -> 1., LI = LI(kp = 200., ki = 0.004, T = 0.045), M = 4.8)
+	mySlack = Slack(ξ = t -> 800., η_gen = t -> 1., LI = LI(kp = 400., ki = 0.05, T = 0.04), M = 4.1)
+	myLoad2 = Load(ξ = t -> -800., η_load = t -> 1., LI = LI(kp = 200., ki = 0.004, T = 0.045), M = 4.8)
+	v1 = construct_vertex(myPV)
+	v2 = construct_vertex(myLoad)
+	v3 = construct_vertex(mySlack)
+	v4 = construct_vertex(myLoad2)
+	nodes = [v1, v2, v3, v4]
+	# nodes = [v1, v2]
+end
+
+begin
+	# from, to parameters are not needed (or only for documentation and overview)
+	myLine = PowerLine(from=1, to=2, K=6)
+	l1 = construct_edge(myLine)
+	lines = [l1, l1, l1, l1]
+end
+
+# begin
+#     g1 = random_regular_graph(length(nodes), 3)
+#     gplot(g1, nodelabel=1:4)
+# end
+
+begin
+	g = SimpleGraph(4)
+	add_edge!(g, 1, 2)
+	add_edge!(g, 1, 4)
+	add_edge!(g, 3, 4)
+	add_edge!(g, 3, 2)
+	gplot(g, nodelabel=1:4)
+end
+
+nd = network_dynamics(nodes, lines, g)
+
+tspan = (0., num_days * l_day)
+ic = ones(5 * N)
+
+
+ILC_pars1 = ILC(kappa = 1/l_hour, mismatch_yesterday = zeros(24), daily_background_power = zeros(24),
+current_background_power = 0., ilc_nodes = vc, ilc_cover = cover, Q = Q)
+
+
+cb = CallbackSet(PeriodicCallback(HourlyUpdate(), l_hour), PeriodicCallback(DailyUpdate_X, l_day))
+ILC_p = ([ILC_pars1, ILC_pars1, ILC_pars1, ILC_pars1], nothing) # passing first tuple element as parameters for nodes and nothing for lines
+ode_problem = ODEProblem(nd, ic, tspan, ILC_p, callback = cb)
+
+# Other solvers to try out: Rosenbrock23(), Rodas4(autodiff=false)
+# CVODE_BDF() doesn't use mass matrices
+# radau() doesn't have DEOptions (?)
 @time sol = solve(ode_problem, Rodas4())
 
-for i=1:24*num_days+1
-	# get hourly_energy from solver
-	hourly_energy[i] = sol((i-1)*3600)[energy_filter[1]]
-	# hourly_energy[i,2] = sol1((i-1)*3600)[energy_filter[2]]
-	# hourly_energy[i,3] = sol1((i-1)*3600)[energy_filter[3]]
-	# hourly_energy[i,4] = sol1((i-1)*3600)[energy_filter[4]]
+# Extracting values out of solution found by solver
+hourly_energy = zeros(24 * num_days + 1, N)
+for i = 1:24*num_days+1
+	for j = 1:N
+		# define energy_filter 3N+1:4N
+		hourly_energy[i, j] = sol((i-1)*3600)[4*j]
+	end
+end
+plot(hourly_energy)
+
+# Code for calculating the ILC power needed for a certain number of days
+ILC_power = zeros(num_days+2, 24, N)
+
+kappa = 1/l_hour
+for j = 1:N
+	ILC_power[2,:,j] = Q*(zeros(24,1) +  kappa*hourly_energy[1:24,j])
 end
 
-# Apply filtering to get ILC energy for the next days
-# ILC_Power is zero for day 1 (day 0, index 1)
-ILC_power = zeros(num_days+2,24,N)
-# ILC_Power for day 2:
-ILC_power[2,:,1] = Q*(zeros(24,1) +  kappa*hourly_energy[1:24,1])
-# ILC_power[2,:,2] = Q*(zeros(24,1) +  kappa*hourly_energy[1:24,2])
-# ILC_power[2,:,3] = Q*(zeros(24,1) +  kappa*hourly_energy[1:24,3])
-# ILC_power[2,:,4] = Q*(zeros(24,1) +  kappa*hourly_energy[1:24,4])
-
-for i=2:num_days
-	ILC_power[i+1,:,1] = Q*(ILC_power[i,:,1] +  kappa*hourly_energy[(i-1)*24+1:i*24,1])
-	# ILC_power[i+1,:,2] = Q*(ILC_power[i,:,2] +  kappa*hourly_energy[(i-1)*24+1:i*24,2])
-	# ILC_power[i+1,:,3] = Q*(ILC_power[i,:,3] +  kappa*hourly_energy[(i-1)*24+1:i*24,3])
-	# ILC_power[i+1,:,4] = Q*(ILC_power[i,:,4] +  kappa*hourly_energy[(i-1)*24+1:i*24,4])
-end
+for i= 2:num_days
+	for j = 1:N
+		ILC_power[i+1,:,j] = Q*(ILC_power[i,:,j] +  kappa*hourly_energy[(i-1)*24+1:i*24,j])
+	end
 end

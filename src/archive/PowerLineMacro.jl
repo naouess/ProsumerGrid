@@ -29,13 +29,15 @@ function create_line(name, prep, parameters, func_body)
     append!(rhsbody.args, [:(destination_ϕ = v_d[3])])
     append!(rhsbody.args, func_body.args)
 
-    es = [:(e[1] = F_ij_vector[1])]
-    ed = [:(e[2] = F_ij_vector[2])]
+    es_real = [:(e[1] = F_ij_vector[1])]
+    es_imag = [:(e[2] = 0)]
+    ed_real = [:(e[3] = F_ij_vector[2])]
+    ed_imag = [:(e[4] = 0)]
 
-    append!(rhsbody.args, [es; ed])
+    append!(rhsbody.args, [es_real; es_imag; ed_real; ed_imag])
 
     rhs_function_exp = Expr(:function, rhscall, rhsbody)
-    edge_exp = :(return StaticEdge(f! = rhs!, dim = 2))
+    edge_exp = :(return StaticEdge(f! = rhs!, dim = 4))
     append!(cl_function.args[2].args, [rhs_function_exp, edge_exp])
 
     ret = quote
