@@ -26,20 +26,21 @@ function construct_vertex(par::PV)
         ω = x[2]
 		χ = x[3]
 		integrated_LI = x[4]
-		integrated_w = x[5]
+		w = x[5]
 
 		u_LI = - K_P * ω + χ
 		w = ξ(t) - (u_LI + p.current_background_power)
+		dw = 0.
         P_gen = (u_LI + p.current_background_power) * η_gen(t)
-		dχ = (- ω - K_I * χ) / T
-        dϕ = ω
-        dω = (P_gen - total_current(e_s, e_d)) / M # F = total_current(e_s, e_d)
+		dχ = (- ω - K_I * χ) * T
+		# dϕ = ω
+        dω = (P_gen - total_current(e_s, e_d)) * M # F = total_current(e_s, e_d)
         try
-            dx[1] = dϕ
+            dx[1] = ω
             dx[2] = dω
 			dx[3] = dχ
 			dx[4] = u_LI
-			dx[5] = w
+			dx[5] = dw
             return nothing
         catch e
             if typeof(e) === UndefVarError
@@ -49,7 +50,7 @@ function construct_vertex(par::PV)
             end
         end
     end
-    ODEVertex(f! = rhs!, dim = 5, mass_matrix = [1, 1, 1, 1, 1], sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
+    ODEVertex(f! = rhs!, dim = 5, mass_matrix = [1, 1, 1, 1, 0], sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
 end
 
 struct Load <: AbstractNode
@@ -73,20 +74,21 @@ function construct_vertex(par::Load)
 		ω = x[2]
 		χ = x[3]
 		integrated_LI = x[4]
-		integrated_w = x[5]
+		w = x[5]
 
 		u_LI = - K_P * ω + χ
 		w = ξ(t) - (u_LI + p.current_background_power)
+		dw = 0.
 		P_load = (u_LI + p.current_background_power) / η_load(t)
-		dχ = (- ω - K_I * χ) / T
-		dϕ = ω
-		dω = (- P_load - total_current(e_s, e_d)) / M # F = total_current(e_s, e_d)
+		dχ = (- ω - K_I * χ) * T
+		# dϕ = ω
+		dω = (- P_load - total_current(e_s, e_d)) * M # F = total_current(e_s, e_d)
 		try
-			dx[1] = dϕ
+			dx[1] = ω
 			dx[2] = dω
 			dx[3] = dχ
 			dx[4] = u_LI
-			dx[5] = w
+			dx[5] = dw
 			return nothing
 		catch e
 			if typeof(e) === UndefVarError
@@ -96,7 +98,7 @@ function construct_vertex(par::Load)
 			end
 		end
 	end
-	ODEVertex(f! = rhs!, dim = 5, mass_matrix = [1, 1, 1, 1, 1], sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
+	ODEVertex(f! = rhs!, dim = 5, mass_matrix = [1, 1, 1, 1, 0], sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
 end
 
 struct Slack <: AbstractNode
@@ -120,20 +122,21 @@ function construct_vertex(par::Slack)
         ω = x[2]
 		χ = x[3]
 		integrated_LI = x[4]
-		integrated_w = x[5]
+		w = x[5]
 
 		u_LI = - K_P * ω + χ
 		w = ξ(t) - (u_LI + p.current_background_power)
+		dw = 0.
         P_gen = (u_LI + p.current_background_power) * η_gen(t)
-		dχ = (- ω - K_I * χ) / T
-        dϕ = ω
-        dω = (P_gen - total_current(e_s, e_d)) / M # F = total_current(e_s, e_d)
+		dχ = (- ω - K_I * χ) * T
+		# dϕ = ω
+        dω = (P_gen - total_current(e_s, e_d)) * M # F = total_current(e_s, e_d)
         try
-            dx[1] = dϕ
+            dx[1] = ω
             dx[2] = dω
 			dx[3] = dχ
 			dx[4] = u_LI
-			dx[5] = w
+			dx[5] = dw
             return nothing
         catch e
             if typeof(e) === UndefVarError
@@ -143,5 +146,5 @@ function construct_vertex(par::Slack)
             end
         end
     end
-    ODEVertex(f! = rhs!, dim = 5, mass_matrix = [1, 1, 1, 1, 1], sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
+    ODEVertex(f! = rhs!, dim = 5, mass_matrix = [1, 1, 1, 1, 0], sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
 end
