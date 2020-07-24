@@ -14,8 +14,9 @@ begin
         function rhs!(e, v_s, v_d, p, t)
             source_ϕ = v_s[1]
             destination_ϕ = v_d[1]
-            e = K * sin(destination_ϕ - source_ϕ)
-            # e = K * (destination_ϕ - source_ϕ) # linear model
+            # e = K * sin(destination_ϕ - source_ϕ)
+            # Linear model:
+            e = K * (destination_ϕ - source_ϕ)
         end
         return StaticEdge(f! = rhs!, dim = 1)
     end
