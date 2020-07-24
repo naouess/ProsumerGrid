@@ -43,9 +43,9 @@ end
 begin
 	# TODO: change naming of M and T to M_inv and T_inv
 	myPV = PV(ξ = t -> 1000., η_gen = t -> 1., LI = LI(kp = 400., ki = 0.05, T = 1/0.04), M = 1/5.)
-	myLoad = Load(ξ = t -> -1000., η_load = t -> 1., LI = LI(kp = 200., ki = 0.004, T = 1/0.045), M = 1/4.8)
-	mySlack = Slack(ξ = t -> 800., η_gen = t -> 1., LI = LI(kp = 400., ki = 0.05, T = 1/0.04), M = 1/4.1)
-	myLoad2 = Load(ξ = t -> -800., η_load = t -> 1., LI = LI(kp = 200., ki = 0.004, T = 1/0.045), M = 1/4.8)
+	myLoad = Load(ξ = t -> -1000., η_load = t -> 1., LI = LI(kp = 110., ki = 0.004, T = 1/0.045), M = 1/4.8)
+	mySlack = Slack(ξ = t -> 800., η_gen = t -> 1., LI = LI(kp = 100., ki = 0.05, T = 1/0.047), M = 1/4.1)
+	myLoad2 = Load(ξ = t -> -800., η_load = t -> 1., LI = LI(kp = 200., ki = 0.001, T = 1/0.043), M = 1/4.8)
 	v1 = construct_vertex(myPV)
 	v2 = construct_vertex(myLoad)
 	v3 = construct_vertex(mySlack)
@@ -59,7 +59,7 @@ begin
 	# from, to parameters are not needed (or only for documentation and overview)
 	myLine = PowerLine(from=1, to=2, K=6)
 	l1 = construct_edge(myLine)
-	lines = [l1, l1]#, l1, l1]
+	lines = [l1, l1, l1, l1]
 end
 
 # begin
@@ -71,10 +71,8 @@ begin
 	g = SimpleGraph(4)
 	add_edge!(g, 1, 2)
 	add_edge!(g, 1, 4)
-	rem_edge!(g, 1, 4)
 	add_edge!(g, 3, 4)
 	add_edge!(g, 3, 2)
-	rem_edge!(g, 3, 2)
 	gplot(g, nodelabel=1:4)
 end
 
@@ -82,7 +80,7 @@ nd = network_dynamics(nodes, lines, g)
 
 # Defining time span and initial values
 tspan = (0., num_days * l_day)
-ic = [123., 50., 12., 0., 0., 100., 50., 12., 0., 0.,100., 50., 12., 0., 0.,100., 50., 12., 0., 0.] # zeros(5 * N)
+ic = [123., 50., 10000., -10000., 0., 100., 50., 10000., 4500., 0., 100., 50., 10000., 5000., 0., 100., 50., 10000., 0., 0.] # zeros(5 * N)
 
 # Defining ILC parameters
 ILC_pars1 = ILC(kappa = 1/l_hour, mismatch_yesterday = zeros(24), daily_background_power = zeros(24),
@@ -97,7 +95,7 @@ ILC_p = ([ILC_pars1, ILC_pars1, ILC_pars1, ILC_pars1], nothing)
 # Defining the ODE-Problem
 ode_problem = ODEProblem(nd, ic, tspan, ILC_p, callback = cb)
 
-@time sol = solve(ode_problem, Rosenbrock23())
+@time sol = solve(ode_problem, Rodas4())
 # Other solvers to try out: Rosenbrock23(), Rodas4(autodiff=false)
 # CVODE_BDF() doesn't use mass matrices
 # radau() doesn't have DEOptions (?)
