@@ -33,7 +33,7 @@ function construct_vertex(par::PV)
         P_gen = (u_LI + p.current_background_power) * η_gen(t)
 		dχ = (- ω - K_I * χ) * T
 		# dϕ = ω
-        dω = (P_gen - total_current(e_s, e_d)) * M # F = total_current(e_s, e_d)
+        dω = (P_gen - total_flow(e_s, e_d)) * M # F = total_flow(e_s, e_d)
         try
             dx[1] = ω
             dx[2] = dω
@@ -80,7 +80,7 @@ function construct_vertex(par::Load)
 		P_load = (u_LI + p.current_background_power) / η_load(t)
 		dχ = (- ω - K_I * χ) * T
 		# dϕ = ω
-		dω = (- P_load - total_current(e_s, e_d)) * M # F = total_current(e_s, e_d)
+		dω = (- P_load - total_flow(e_s, e_d)) * M # F = total_flow(e_s, e_d)
 		try
 			dx[1] = ω
 			dx[2] = dω
@@ -127,7 +127,7 @@ function construct_vertex(par::Slack)
         P_gen = (u_LI + p.current_background_power) * η_gen(t)
 		dχ = (- ω - K_I * χ) * T
 		# dϕ = ω
-        dω = (P_gen - total_current(e_s, e_d)) * M # F = total_current(e_s, e_d)
+        dω = (P_gen - total_flow(e_s, e_d)) * M # F = total_flow(e_s, e_d)
         try
             dx[1] = ω
             dx[2] = dω

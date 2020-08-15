@@ -23,8 +23,8 @@ begin
 end
 
 ### Helper function
-function total_current(e_s, e_d)
-    # Keeping with the convention of negative sign for outging current
+function total_flow(e_s, e_d)
+    # Keeping with the convention of negative sign for outging flow
     net_flow = 0.
     for e in e_s
         net_flow -= e[1]
