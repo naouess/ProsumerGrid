@@ -14,12 +14,12 @@ begin
 	@with_kw mutable struct LI
 		kp
 		ki
-		T
+		T_inv
 		"""
 		Constructor
 		"""
-		function LI(kp, ki, T)
-				new(kp, ki, T)
+		function LI(kp, ki, T_inv)
+				new(kp, ki, T_inv)
 		end
 	end
 
