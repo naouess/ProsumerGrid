@@ -12,11 +12,13 @@ begin
         to = par.to
         K = par.K
         function rhs!(e, v_s, v_d, p, t)
+            # If current is flowing away from the source, it is negative at the source.
             source_ϕ = v_s[1]
             destination_ϕ = v_d[1]
             # e = K * sin(destination_ϕ - source_ϕ)
-            # Linear model:
-            e = K * (destination_ϕ - source_ϕ)
+            # Linearized model:
+            e .= K .* (destination_ϕ .- source_ϕ)
+            nothing
         end
         return StaticEdge(f! = rhs!, dim = 1)
     end
@@ -32,5 +34,6 @@ function total_flow(e_s, e_d)
     for e in e_d
         net_flow += e[1]
     end
-    net_flow
+    # println("This is the net flow: ", net_flow)
+    return net_flow
 end
