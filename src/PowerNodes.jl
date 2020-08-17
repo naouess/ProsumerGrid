@@ -28,26 +28,33 @@ function construct_vertex(par::PV)
 		integrated_LI = @view x[4]
 		integrated_w = @view x[5]
 
+		dx1 = @view dx[1]
+		dx2 = @view dx[2]
+		dx3 = @view dx[3]
+		dx4 = @view dx[4]
+		dx5 = @view dx[5]
+
 		u_ILC = p.current_background_power
-		F = total_flow(e_s, e_d)
-		println("This is the net flow from node PV ", F)
+		F = total_flow(ϕ, e_s, e_d)
+		# println("This is the net flow from node PV ", F)
 
 		dϕ = ω[1]
 		u_LI = - K_P * ω[1] + χ[1]
-		P_gen = (ξ(t) + (u_LI + u_ILC)) * η_gen(t)
+		P_gen = (ξ(t)[1] + u_LI + u_ILC) * η_gen(t)
+		# w = ξ(t)[1] - (u_LI + u_ILC)
 		w = 0
 		dω = (P_gen - F) * M_inv
 		dχ = (- ω[1] - K_I * χ[1]) * T_inv
 
-		dx[1] = dϕ
-		dx[2] = dω
-		dx[3] = dχ
-		dx[4] = u_LI
-		dx[5] = w
+		dx1 = dϕ
+		dx2 = dω
+		dx3 = dχ
+		dx4 = u_LI
+		dx5 = w
 
 		nothing
     end
-    ODEVertex(f! = rhs!, dim = 5, mass_matrix = [1, 1, 1, 1, 0], sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
+    ODEVertex(f! = rhs!, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w]) # mass_matrix = [1, 1, 1, 1, 0],
 end
 
 struct Load <: AbstractNode
@@ -73,26 +80,33 @@ function construct_vertex(par::Load)
 		integrated_LI = @view x[4]
 		integrated_w = @view x[5]
 
+		dx1 = @view dx[1]
+		dx2 = @view dx[2]
+		dx3 = @view dx[3]
+		dx4 = @view dx[4]
+		dx5 = @view dx[5]
+
 		u_ILC = p.current_background_power
-		F = total_flow(e_s, e_d)
-		println("This is the net flow from node load ", F)
+		F = total_flow(ϕ, e_s, e_d)
+		# println("This is the net flow from node load ", F)
 
 		dϕ = ω[1]
 		u_LI = - K_P * ω[1] + χ[1]
+		# w = ξ(t)[1] - (u_LI + u_ILC)
 		w = 0
-		P_load = (ξ(t) + (u_LI + u_ILC))/ η_load(t)
+		P_load = (ξ(t)[1] + u_LI + u_ILC)/ η_load(t)
 		dω = (- P_load - F) * M_inv
 		dχ = (- ω[1] - K_I * χ[1]) * T_inv
 
-		dx[1] = dϕ
-		dx[2] = dω
-		dx[3] = dχ
-		dx[4] = u_LI
-		dx[5] = w
+		dx1 = dϕ
+		dx2 = dω
+		dx3 = dχ
+		dx4 = u_LI
+		dx5 = w
 
 		nothing
 	end
-    ODEVertex(f! = rhs!, dim = 5, mass_matrix = [1, 1, 1, 1, 0], sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
+    ODEVertex(f! = rhs!, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
 end
 
 struct Slack <: AbstractNode
@@ -118,24 +132,31 @@ function construct_vertex(par::Slack)
 		integrated_LI = @view x[4]
 		integrated_w = @view x[5]
 
+		dx1 = @view dx[1]
+		dx2 = @view dx[2]
+		dx3 = @view dx[3]
+		dx4 = @view dx[4]
+		dx5 = @view dx[5]
+
 		u_ILC = p.current_background_power
-		F = total_flow(e_s, e_d)
-		println("This is the net flow from node slack ", F)
+		F = total_flow(ϕ, e_s, e_d)
+		# println("This is the net flow from node Slack ", F)
 
 		dϕ = ω[1]
 		u_LI = - K_P * ω[1] + χ[1]
+		P_gen = (ξ(t)[1] + u_LI + u_ILC) * η_gen(t)
+		# w = ξ(t)[1] - (u_LI + u_ILC)
 		w = 0
-		P_gen = (ξ(t) + u_LI + u_ILC) * η_gen(t)
-		dχ = (- ω[1] - K_I * χ[1]) * T_inv
 		dω = (P_gen - F) * M_inv
+		dχ = (- ω[1] - K_I * χ[1]) * T_inv
 
-		dx[1] = dϕ
-		dx[2] = dω
-		dx[3] = dχ
-		dx[4] = u_LI
-		dx[5] = w
+		dx1 = dϕ
+		dx2 = dω
+		dx3 = dχ
+		dx4 = u_LI
+		dx5 = w
 
 		nothing
     end
-    ODEVertex(f! = rhs!, dim = 5, mass_matrix = [1, 1, 1, 1, 0], sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
+    ODEVertex(f! = rhs!, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_w])
 end
