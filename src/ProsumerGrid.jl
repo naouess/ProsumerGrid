@@ -1,5 +1,6 @@
 begin
 	using NetworkDynamics, LightGraphs, Parameters, DifferentialEquations, GraphPlot
+	using Interpolations
 	using Sundials # to use the solver CVODE_BDF()
 	using ODEInterfaceDiffEq # to use the solver radau()
 	using ToeplitzMatrices
@@ -11,8 +12,9 @@ begin
 	dir = @__DIR__
 	include("$dir/PowerNodes.jl")
 	include("$dir/PowerLine.jl")
-	include("$dir/structs.jl")
+	include("$dir/Structs.jl")
 	include("$dir/UpdateFunctions.jl")
+	# include("$dir/Demand.jl")
 end
 
 #=
@@ -21,17 +23,18 @@ Minimal example to test out the defined nodes and Powerline
 
 # General parameters
 begin
-	num_days = 35
+	num_days = 20
 	l_day = 24*3600
 	l_hour = 3600
-	N = 4
+	N = 2
 end
 
 # Parameters for ILC controller
 begin
-	# Number of ILC-Node (here: without communication)
+	# Number of ILC-Node
 	vc = 1:N
-	cover = Dict([v => [] for v in vc])
+	# Nodes with communication: here none
+	cover = Dict([v => [] for v in vc]) # cover = Dict([1 => []])
 	u = [zeros(1000,1);1;zeros(1000,1)];
 	fc = 1/6
 	a = digitalfilter(Lowpass(fc), Butterworth(2))
@@ -41,61 +44,63 @@ end
 
 # Defining the nodes
 begin
-	# TODO: change naming of M and T to M_inv and T_inv
-	myPV = PV(ξ = t -> 1000., η_gen = t -> 1., LI = LI(kp = 400., ki = 0.05, T = 1/0.04), M = 1/5.)
-	myLoad = Load(ξ = t -> -1000., η_load = t -> 1., LI = LI(kp = 110., ki = 0.004, T = 1/0.045), M = 1/4.8)
-	mySlack = Slack(ξ = t -> 800., η_gen = t -> 1., LI = LI(kp = 100., ki = 0.05, T = 1/0.047), M = 1/4.1)
-	myLoad2 = Load(ξ = t -> -800., η_load = t -> 1., LI = LI(kp = 200., ki = 0.001, T = 1/0.043), M = 1/4.8)
+	myPV = PV(ξ = t -> 2., η_gen = t -> 1., LI = LI(kp = 400., ki = 0.05, T_inv = 1/0.04), M_inv = 1/5.) #(periodic_demand(t)+residual_demand(t))/N
+	myLoad = Load(ξ = t -> -1.8, η_load = t -> 1., LI = LI(kp = 110., ki = 0.004, T_inv = 1/0.045), M_inv = 1/4.8)
+	# mySlack = Slack(ξ = t -> 0.8, η_gen = t -> 1., LI = LI(kp = 100., ki = 0.05, T_inv = 1/0.047), M_inv = 1/4.1)
+	# myLoad2 = Load(ξ = t -> -0.8, η_load = t -> 1., LI = LI(kp = 200., ki = 0.001, T_inv = 1/0.043), M_inv = 1/4.8)
 	v1 = construct_vertex(myPV)
 	v2 = construct_vertex(myLoad)
-	v3 = construct_vertex(mySlack)
-	v4 = construct_vertex(myLoad2)
-	nodes = [v1, v2, v3, v4]
-	#nodes = [myPV, myLoad, mySlack, myLoad2]
-
+	# v3 = construct_vertex(mySlack)
+	# v4 = construct_vertex(myLoad2)
+	# nodes = [v1, v2, v3, v4]
+	nodes = [v1, v2]
 end
 
 begin
 	# from, to parameters are not needed (or only for documentation and overview)
 	myLine = PowerLine(from=1, to=2, K=6)
 	l1 = construct_edge(myLine)
-	lines = [l1, l1, l1, l1]
+	lines = [l1]
+	# lines = [l1, l1, l1, l1, l1, l1]
 end
 
 # begin
-#     g1 = random_regular_graph(length(nodes), 3)
-#     gplot(g1, nodelabel=1:4)
+#     g1 = random_regular_graph(length(nodes), 1)
+#     gplot(g1, nodelabel=1:2)
 # end
 
 begin
-	g = SimpleGraph(4)
+	g = SimpleDiGraph(2)
 	add_edge!(g, 1, 2)
-	add_edge!(g, 1, 4)
-	add_edge!(g, 3, 4)
-	add_edge!(g, 3, 2)
-	gplot(g, nodelabel=1:4)
+	# add_edge!(g, 1, 4)
+	# add_edge!(g, 3, 4)
+	# add_edge!(g, 3, 2)
+	gplot(g, nodelabel=1:2)
 end
 
 nd = network_dynamics(nodes, lines, g)
 
 # Defining time span and initial values
-tspan = (0., num_days * l_day)
-ic = [123., 50., 10000., -10000., 0., 100., 50., 10000., 4500., 0., 100., 50., 10000., 5000., 0., 100., 50., 10000., 0., 0.] # zeros(5 * N)
+tspan = (0., num_days*l_day)
+# ic = [1.175, 0., 1., 1., 0., 1., 0., -1., -1., 0., 13.7/12, 0., 0.8, 0.8, 0., 6.1/6, 0., -0.8, -0.8, 0.] # zeros(5 * N)
+ic = [7/6, 0., 1., 1., 0., 1., 0., -1., -1., 0.]
+# ic = zeros(10)
 
 # Defining ILC parameters
 ILC_pars1 = ILC(kappa = 1/l_hour, mismatch_yesterday = zeros(24), daily_background_power = zeros(24),
 current_background_power = 0., ilc_nodes = vc, ilc_cover = cover, Q = Q)
 
 # Defining the callback function
-cb = CallbackSet(PeriodicCallback(HourlyUpdate(), l_hour), PeriodicCallback(DailyUpdate_X, l_day))
+cb = CallbackSet(PeriodicCallback(HourlyUpdate(), l_hour), PeriodicCallback(DailyUpdate, l_day))
 
 # Passing first tuple element as parameters for nodes and nothing for lines
-ILC_p = ([ILC_pars1, ILC_pars1, ILC_pars1, ILC_pars1], nothing)
+# ILC_p = ([ILC_pars1, ILC_pars1, ILC_pars1, ILC_pars1], nothing)
+ILC_p = ([ILC_pars1, ILC_pars1], nothing)
 
 # Defining the ODE-Problem
 ode_problem = ODEProblem(nd, ic, tspan, ILC_p, callback = cb)
 
-@time sol = solve(ode_problem, Rodas4())
+@time sol =  solve(ode_problem, Rodas4()) # @debug
 # Other solvers to try out: Rosenbrock23(), Rodas4(autodiff=false)
 # CVODE_BDF() doesn't use mass matrices
 # radau() doesn't have DEOptions (?)
