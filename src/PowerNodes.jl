@@ -40,7 +40,7 @@ function construct_vertex(par::PV)
 
 		dϕ = ω[1]
 		u_LI = - K_P * ω[1] + χ[1]
-		P_gen = (ξ(t)[1] + u_LI + u_ILC) * η_gen(t)
+		P_gen = (ξ(t)[1] - (u_LI + u_ILC)) * η_gen(t)
 		# w = ξ(t)[1] - (u_LI + u_ILC)
 		w = 0
 		dω = (P_gen - F) * M_inv
@@ -94,7 +94,7 @@ function construct_vertex(par::Load)
 		u_LI = - K_P * ω[1] + χ[1]
 		# w = ξ(t)[1] - (u_LI + u_ILC)
 		w = 0
-		P_load = (ξ(t)[1] + u_LI + u_ILC)/ η_load(t)
+		P_load = (ξ(t)[1] - (u_LI + u_ILC))/ η_load(t)
 		dω = (- P_load - F) * M_inv
 		dχ = (- ω[1] - K_I * χ[1]) * T_inv
 
@@ -144,7 +144,7 @@ function construct_vertex(par::Slack)
 
 		dϕ = ω[1]
 		u_LI = - K_P * ω[1] + χ[1]
-		P_gen = (ξ(t)[1] + u_LI + u_ILC) * η_gen(t)
+		P_gen = (ξ(t)[1] - (u_LI + u_ILC))* η_gen(t)
 		# w = ξ(t)[1] - (u_LI + u_ILC)
 		w = 0
 		dω = (P_gen - F) * M_inv
