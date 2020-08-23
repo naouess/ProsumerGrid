@@ -40,13 +40,15 @@ begin
 	end
 
 	@with_kw mutable struct compound_pars
+		ξ
 		ILC::ILC
 		LI::LI
+		M_inv
 		"""
 		Constructor
 		"""
-		function compound_pars(ILC, LI)
-				new(ILC, LI)
+		function compound_pars(ξ, ILC, LI, M_inv)
+				new(ξ, ILC, LI, M_inv)
 		end
 	end
 end
