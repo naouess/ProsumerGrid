@@ -24,7 +24,7 @@ function (hu::HourlyUpdate)(integrator)
 		# println(integrator.p[1][j].mismatch_yesterday[last_hour])
 		integrator.u[5*j-1] = 0.
 		integrator.p[1][j].current_background_power = integrator.p[1][j].daily_background_power[hour]
-		# println("The daily background power for node ", j, " : ", integrator.p[1][j].daily_background_power[hour])
+		# println("The current background power for node ", j, " : ", integrator.p[1][j].current_background_power)
 		# println("I'm doing this at time ", integrator.t, " for node ", j)
 	end
 	# Why is the abs. value needed ?
@@ -36,7 +36,6 @@ function DailyUpdate(integrator)
 	for j = 1:N
 		integrator.p[1][j].daily_background_power = integrator.p[1][j].Q * (integrator.p[1][j].daily_background_power
 		+ integrator.p[1][j].kappa * integrator.p[1][j].mismatch_yesterday)
-		# println("And also this at time ", integrator.t, " for node ", j)
 	end
 	nothing
 end
