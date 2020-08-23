@@ -7,6 +7,7 @@ begin
 	using DSP
 	using Plots
 	using LinearAlgebra
+	using Statistics
 end
 
 begin
@@ -15,7 +16,7 @@ begin
 	include("$dir/PowerLine.jl")
 	include("$dir/Structs.jl")
 	include("$dir/UpdateFunctions.jl")
-	# include("$dir/Demand.jl")
+	include("$dir/Demand.jl")
 end
 
 #=
@@ -24,7 +25,7 @@ Minimal example to test out the defined nodes and Powerline
 
 # General parameters
 begin
-	num_days = 7
+	num_days = 10
 	l_day = 24*3600
 	l_hour = 3600
 	N = 2
@@ -46,45 +47,36 @@ end
 # Defining the nodes
 begin
 	myPV = PV(ξ = t -> 1. , η_gen = t -> 1., LI = LI(kp = 400., ki = 0.05, T_inv = 1/0.04), M_inv = 1/5.) #(periodic_demand(t)+residual_demand(t))/N
-	myLoad = Load(ξ = t -> -1., η_load = t -> 1., LI = LI(kp = 110., ki = 0.004, T_inv = 1/0.045), M_inv = 1/4.8)
+	myLoad = Load(ξ = t -> -(periodic_demand(t)+residual_demand(t)), η_load = t -> 1., LI = LI(kp = 110., ki = 0.004, T_inv = 1/0.045), M_inv = 1/4.8)
 	# mySlack = Slack(ξ = t -> (periodic_demand(t)+residual_demand(t))/N, η_gen = t -> 1., LI = LI(kp = 100., ki = 0.05, T_inv = 1/0.047), M_inv = 1/4.1)
 	# myLoad2 = Load(ξ = t -> -(periodic_demand(t)+residual_demand(t))/N, η_load = t -> 1., LI = LI(kp = 200., ki = 0.001, T_inv = 1/0.043), M_inv = 1/4.8)
 	v1 = construct_vertex(myPV)
 	v2 = construct_vertex(myLoad)
 	# v3 = construct_vertex(mySlack)
 	# v4 = construct_vertex(myLoad2)
-	# nodes = [v1, v2, v3, v4]
-	nodes = [v1, v2]
 end
 
 begin
 	# from, to parameters are not needed (or only for documentation and overview)
 	myLine = PowerLine(from=1, to=2, K=6)
-	l1 = construct_edge(myLine)
-	lines = [l1]#, l1, l1, l1]
+	line = construct_edge(myLine)
 end
 
 begin
-	g = SimpleGraph(2)
-	add_edge!(g, 1, 2)
-	# add_edge!(g, 1, 4)
-	# add_edge!(g, 3, 4)
-	# add_edge!(g, 3, 2)
-	gplot(g, nodelabel=1:2)
-
+	nodes = [v1, v2]
+	lines = [line]
+	g1 = random_regular_graph(N, 1)
+	# gplot(g1, nodelabel=1:4)
+	# g = SimpleGraph(2)
+	# add_edge!(g, 1, 2)
+	# # add_edge!(g, 1, 4)
+	# # add_edge!(g, 3, 4)
+	# # add_edge!(g, 3, 2)
+	# gplot(g, nodelabel=1:2)
 	# println(incidence_matrix(g1,oriented=true)')
 
-	# g1 = random_regular_graph(3, 2)
-	# gplot(g1, nodelabel=1:3)
+	nd = network_dynamics(nodes, lines, g1)
 end
-
-nd = network_dynamics(nodes, lines, g)
-
-# Defining time span and initial values
-tspan = (0., num_days*l_day)
-ic = [7/6, 0., 1., 1., 0., 1., 0., -1., -1., 0.]
-# ic = [1.175, 0., 1., 1., 0., 1., 0., -1., -1., 0., 13.7/12, 0., 0.8, 0.8, 0., 6.1/6, 0., -0.8, -0.8, 0.] # zeros(5 * N)
-# ic = ones(20)
 
 # Defining ILC parameters
 begin
@@ -92,17 +84,22 @@ begin
 	current_background_power = 0., ilc_nodes = vc, ilc_cover = cover, Q = Q)
 end
 
-# Defining the callback function
-cb = CallbackSet(PeriodicCallback(HourlyUpdate(), l_hour), PeriodicCallback(DailyUpdate, l_day))
+begin
+	# Defining time span and initial values
+	tspan = (0., num_days*l_day)
+	ic = ones(8)
 
-# Passing first tuple element as parameters for nodes and nothing for lines
-ILC_p = ([ILC_pars1, ILC_pars1], nothing)
-# ILC_p = ([ILC_pars1, ILC_pars1, ILC_pars1, ILC_pars1], nothing)
+	# Defining the callback function
+	cb = CallbackSet(PeriodicCallback(HourlyUpdate(), l_hour), PeriodicCallback(DailyUpdate, l_day))
 
-# Defining the ODE-Problem
-ode_problem = ODEProblem(nd, ic, tspan, ILC_p, callback = cb)
+	# Passing first tuple element as parameters for nodes and nothing for lines
+	ILC_p = ([ILC_pars1, ILC_pars1], nothing)
 
-@time sol = solve(ode_problem, Rodas4()) # @debug
+	# Defining the ODE-Problem
+	ode_problem = ODEProblem(nd, ic, tspan, ILC_p, callback = cb)
+end
+
+@time sol = solve(ode_problem, Rodas4()) # Rosenbrock23()
 """
 Some info about solvers:
 # Other solvers to try out: Rosenbrock23(), Rodas4() or Rodas4(autodiff=false)
@@ -112,15 +109,18 @@ Some info about solvers:
 # ForwardDiff’s NaN-safe mode: http://www.juliadiff.org/ForwardDiff.jl/latest/user/advanced.html#Fixing-NaN/Inf-Issues-1
 """
 
-####
-# Extracting values out of solution found by solver
+## Extracting values out of solution found by solver
+
 hourly_energy = zeros(24 * num_days + 1, N)
-for i = 1:24*num_days+1
-	for j = 1:N
-		hourly_energy[i, j] = sol((i-1)*3600)[5*j-1]
+# hourly_theta = zeros(24 * num_days + 1, N)
+for j = 1:N
+	for i = 1:24*num_days+1
+		hourly_energy[i, j] = sol((i-1)*3600)[4*j]
+		# hourly_theta[i, j] = sol((i-1)*3600)[4*j - 2]
 	end
 end
 plot(hourly_energy)
+plot(hourly_theta)
 
 begin
 	# ILC power needed for a certain number of days
@@ -136,19 +136,19 @@ begin
 		mean_energy_d[1,j] = mean(hourly_energy[1:24,j])
 	end
 
-	for i= 2:num_days
-		for j = 1:N
-			ILC_power[i+1,:,j] = Q*(ILC_power[i,:,j] +  kappa*hourly_energy[(i-1)*24+1:i*24,j])
+	for j = 1:N
+		for i= 2:num_days
+			ILC_power[i+1,:,j] .= Q*(ILC_power[i,:,j] .+  kappa*hourly_energy[(i-1)*24+1:i*24,j])
 			norm_energy_d[i,j] = norm(hourly_energy[(i-1)*24+1:i*24,j])
 			mean_energy_d[i,j] = mean(hourly_energy[(i-1)*24+1:i*24,j])
 		end
 	end
+
+	ILC_power_agg = maximum(mean(ILC_power.^2,dims=3),dims=2)
+	ILC_power_agg = mean(ILC_power,dims=2)
+	ILC_power_agg_norm = norm(ILC_power)
+	ILC_power_hourly = vcat(ILC_power[:,:,1]'...)
 end
 
-# plot(ILC_power[:,:,1])
-plot(ILC_power[7,:,1])
-
 # TODO:
-# Define observables to evaluate solution found
-# Define frequency exceedance function
-# Plot results
+# Define observables to evaluate solution found: frequency exceedance function
