@@ -11,7 +11,7 @@ begin
         from = par.from
         to = par.to
         K = par.K
-        function rhs!(e, v_s, v_d, p, t)
+        function edgefunction!(e, v_s, v_d, p, t)
             # If current is flowing away from the source, it is negative at the source.
             source_ϕ = v_s[1]
             destination_ϕ = v_d[1]
@@ -21,7 +21,7 @@ begin
             e .= [K, destination_ϕ, source_ϕ, F]
             nothing
         end
-        return StaticEdge(f! = rhs!, dim = 4)
+        return StaticEdge(f! = edgefunction!, dim = 4)
     end
 end
 
