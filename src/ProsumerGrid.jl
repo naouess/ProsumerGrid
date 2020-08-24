@@ -2,21 +2,14 @@ begin
 	using NetworkDynamics, LightGraphs, Parameters, DifferentialEquations, GraphPlot
 	using Interpolations
 	using Sundials # to use the solver CVODE_BDF()
-	using ODEInterfaceDiffEq # to use the solver radau()
+	# using ODEInterfaceDiffEq # to use the solver radau()
 	using ToeplitzMatrices
 	using DSP
 	using Plots
 	using LinearAlgebra
 	using Statistics
-end
-
-begin
-	dir = @__DIR__
-	include("$dir/PowerNodes.jl")
-	include("$dir/PowerLine.jl")
-	include("$dir/Structs.jl")
-	include("$dir/UpdateFunctions.jl")
-	include("$dir/Demand.jl")
+	using Random
+	Random.seed!(42)
 end
 
 #=
@@ -28,7 +21,16 @@ begin
 	num_days = 10
 	l_day = 24*3600
 	l_hour = 3600
-	N = 2
+	N = 4
+end
+
+begin
+	dir = @__DIR__
+	include("$dir/PowerNodes.jl")
+	include("$dir/PowerLine.jl")
+	include("$dir/Structs.jl")
+	include("$dir/UpdateFunctions.jl")
+	include("$dir/Demand.jl")
 end
 
 # Parameters for ILC controller
@@ -46,14 +48,14 @@ end
 
 # Defining the nodes
 begin
-	myPV = PV(ξ = t -> 1. , η_gen = t -> 1., LI = LI(kp = 400., ki = 0.05, T_inv = 1/0.04), M_inv = 1/5.) #(periodic_demand(t)+residual_demand(t))/N
-	myLoad = Load(ξ = t -> -(periodic_demand(t)+residual_demand(t)), η_load = t -> 1., LI = LI(kp = 110., ki = 0.004, T_inv = 1/0.045), M_inv = 1/4.8)
-	# mySlack = Slack(ξ = t -> (periodic_demand(t)+residual_demand(t))/N, η_gen = t -> 1., LI = LI(kp = 100., ki = 0.05, T_inv = 1/0.047), M_inv = 1/4.1)
-	# myLoad2 = Load(ξ = t -> -(periodic_demand(t)+residual_demand(t))/N, η_load = t -> 1., LI = LI(kp = 200., ki = 0.001, T_inv = 1/0.043), M_inv = 1/4.8)
+	myPV = PV(ξ = t -> (periodic_demand(t)+residual_demand(t))[1] , η_gen = t -> 1., LI = LI(kp = 400., ki = 0.05, T_inv = 1/0.04), M_inv = 1/5.) #(periodic_demand(t)+residual_demand(t))/N
+	myLoad = Load(ξ = t -> (periodic_demand(t)+residual_demand(t))[2], η_load = t -> 1., LI = LI(kp = 110., ki = 0.004, T_inv = 1/0.045), M_inv = 1/4.8)
+	mySlack = Slack(ξ = t -> (periodic_demand(t)+residual_demand(t))[3], η_gen = t -> 1., LI = LI(kp = 100., ki = 0.05, T_inv = 1/0.047), M_inv = 1/4.1)
+	myLoad2 = Load(ξ = t -> (periodic_demand(t)+residual_demand(t))[4], η_load = t -> 1., LI = LI(kp = 200., ki = 0.001, T_inv = 1/0.043), M_inv = 1/4.8)
 	v1 = construct_vertex(myPV)
 	v2 = construct_vertex(myLoad)
-	# v3 = construct_vertex(mySlack)
-	# v4 = construct_vertex(myLoad2)
+	v3 = construct_vertex(mySlack)
+	v4 = construct_vertex(myLoad2)
 end
 
 begin
@@ -63,16 +65,18 @@ begin
 end
 
 begin
-	nodes = [v1, v2]
-	lines = [line]
-	g1 = random_regular_graph(N, 1)
+	nodes = [v1, v2, v3, v4]
+	lines = [line for i in 1:6]
+	g1 = random_regular_graph(N, 3)
 	# gplot(g1, nodelabel=1:4)
+
 	# g = SimpleGraph(2)
 	# add_edge!(g, 1, 2)
 	# # add_edge!(g, 1, 4)
 	# # add_edge!(g, 3, 4)
 	# # add_edge!(g, 3, 2)
 	# gplot(g, nodelabel=1:2)
+
 	# println(incidence_matrix(g1,oriented=true)')
 
 	nd = network_dynamics(nodes, lines, g1)
@@ -87,13 +91,13 @@ end
 begin
 	# Defining time span and initial values
 	tspan = (0., num_days*l_day)
-	ic = ones(8)
+	ic = zeros(16)
 
 	# Defining the callback function
 	cb = CallbackSet(PeriodicCallback(HourlyUpdate(), l_hour), PeriodicCallback(DailyUpdate, l_day))
 
 	# Passing first tuple element as parameters for nodes and nothing for lines
-	ILC_p = ([ILC_pars1, ILC_pars1], nothing)
+	ILC_p = ([ILC_pars1, ILC_pars1, ILC_pars1, ILC_pars1], nothing)
 
 	# Defining the ODE-Problem
 	ode_problem = ODEProblem(nd, ic, tspan, ILC_p, callback = cb)
@@ -112,15 +116,13 @@ Some info about solvers:
 ## Extracting values out of solution found by solver
 
 hourly_energy = zeros(24 * num_days + 1, N)
-# hourly_theta = zeros(24 * num_days + 1, N)
 for j = 1:N
 	for i = 1:24*num_days+1
 		hourly_energy[i, j] = sol((i-1)*3600)[4*j]
 		# hourly_theta[i, j] = sol((i-1)*3600)[4*j - 2]
 	end
 end
-plot(hourly_energy)
-plot(hourly_theta)
+# plot(hourly_energy)
 
 begin
 	# ILC power needed for a certain number of days
@@ -150,5 +152,27 @@ begin
 	ILC_power_hourly = vcat(ILC_power[:,:,1]'...)
 end
 
-# TODO:
+## Plots
+using LaTeXStrings
+
+begin
+# hourly plotting
+	plot(1:num_days*24, ILC_power_hourly[1:24*num_days] , legend=:topleft, label=L"$ u_j^{ILC}$", ytickfontsize=14,
+	               xtickfontsize=18,
+	    		   legendfontsize=12, linewidth=3,xaxis=("time [h]",font(14)), yaxis=("normed power",font(14)))
+	plot!(1:num_days*24+1,mean(hourly_energy, dims=2)/3600 , label=L"y^{c,h}", linewidth=3)
+end
+
+# second-wise
+begin
+	plot(1:3600:num_days*24*3600,  ILC_power_hourly[1:num_days*24]./ maximum(ILC_power_hourly), label=L"$P_{ILC, j}$", ytickfontsize=14,
+	               xtickfontsize=18,
+	    		   legendfontsize=10, linewidth=3,xaxis=("time [s]",font(14)), yaxis=("normed quantities [a.u.]",font(14)))
+	plot!(1:3600:24*num_days*3600,mean(hourly_energy[1:num_days*24], dims=2) ./ maximum(hourly_energy), label=L"y_h",linewidth=3, linestyle=:dash)
+end
+
+## TODO:
+# Generate plots for each node
 # Define observables to evaluate solution found: frequency exceedance function
+
+# Generalize code structure to export as package

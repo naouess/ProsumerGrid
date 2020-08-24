@@ -2,13 +2,6 @@ using Interpolations
 using JLD2, FileIO, GraphIO, CSV, DataFrames
 
 begin
-	num_days = 7
-	l_day = 24*3600
-	l_hour = 3600
-	N = 2
-end
-
-begin
 	struct demand_amp_var
 		demand
 	end
@@ -30,7 +23,7 @@ begin
 	week_G1 = t->dem_data_week[!,:WinterwocheG1][Int(floor(mod(t,24*3600*7) / 900)+1)]
 	week_G4 = t->dem_data_week[!,:WinterwocheG4][Int(floor(mod(t,24*3600*7) / 900)+1)]
 
-	week = t->vcat(week_winter(t), week_G1(t))#, week_G4(t), (week_winter(t) + week_G1(t) + week_G4(t))./3)
+	week = t->vcat(week_winter(t), week_G1(t), week_G4(t), (week_winter(t) + week_G1(t) + week_G4(t))./3)
 
 
 	periodic_demand = t ->  week(t) ./100
