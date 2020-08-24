@@ -100,7 +100,7 @@ begin
 	ode_problem = ODEProblem(nd, ic, tspan, parameters, callback = cb)
 end
 
-@time sol = solve(ode_problem, Rodas4())
+@time sol = solve(ode_problem, CVODE_BDF())
 # Rosenbrock23()
 
 ## Extracting values out of solution found by solver
