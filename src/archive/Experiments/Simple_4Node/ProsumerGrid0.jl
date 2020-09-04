@@ -18,7 +18,7 @@ Minimal example to test out the defined nodes and Powerline
 
 # General parameters
 begin
-	num_days = 10
+	num_days = 7
 	l_day = 24*3600
 	l_hour = 3600
 	N = 4
@@ -70,7 +70,7 @@ end
 
 # Defining compound parameters
 begin
-	par_PV = compound_pars(ξ = t -> (periodic_demand(t)+residual_demand(t))[1], ILC=ILC_pars1, LI=LI_pars_PV, M_inv = 1/5.)
+	par_PV = compound_pars(ξ = t -> (periodic_demand(t)+residual_demand(t))[1], ILC=ILC_pars1, LI=LI_pars_PV, M_inv = 1/5.) # (periodic_demand(t)+residual_demand(t))[1]
 	par_load = compound_pars(ξ = t -> (periodic_demand(t)+residual_demand(t))[2], ILC=ILC_pars1, LI=LI_pars_load, M_inv = 1/4.8)
 	par_slack = compound_pars(ξ = t -> (periodic_demand(t)+residual_demand(t))[3], ILC=ILC_pars1, LI=LI_pars_Slack, M_inv = 1/4.1)
 	par_load2 = compound_pars(ξ = t -> (periodic_demand(t)+residual_demand(t))[4], ILC=ILC_pars1, LI=LI_pars_Load2, M_inv = 1/4.8)
@@ -80,15 +80,15 @@ begin
 	# par_load2 = compound_pars(ξ = t -> -1., ILC=ILC_pars1, LI=LI_pars_Load2, M_inv = 1/4.8)
 end
 
-plot(1:24*3600*7, t -> par_PV.ξ(t))
-plot(1:24*3600*7, t -> par_load.ξ(t))
-# plot(1:24*3600*7, t -> par_load2.ξ(t))
-# plot(1:24*3600*7, t -> par_slack.ξ(t))
+plot(1:24*3600*3, t -> par_PV.ξ(t))
+plot(1:24*3600*3, t -> par_load.ξ(t))
+plot(1:24*3600*3, t -> par_load2.ξ(t))
+plot(1:24*3600*3, t -> par_slack.ξ(t))
 
 begin
 	# Defining time span and initial values
 	tspan = (0., num_days*l_day)
-	ic = ones(16)
+	ic = zeros(16)
 
 	# Defining the callback function
 	cb = CallbackSet(PeriodicCallback(HourlyUpdate(), l_hour), PeriodicCallback(DailyUpdate, l_day))
@@ -100,21 +100,23 @@ begin
 	ode_problem = ODEProblem(nd, ic, tspan, parameters, callback = cb)
 end
 
-@time sol = solve(ode_problem, CVODE_BDF())
+@time sol = solve(ode_problem, Rodas4())#, maxiters=10^8)
+plot(sol, vars = syms_containing(nd, "ω"), legend = true)
+plot(sol, vars = syms_containing(nd, "ϕ"), legend = true)
+plot(sol, vars = syms_containing(nd, "integrated_LI"), legend = true)
+
 # Rosenbrock23()
+# CVODE_BDF()
 
 ## Extracting values out of solution found by solver
 
 hourly_energy = zeros(24 * num_days + 1, N)
-hourly_theta = zeros(24 * num_days + 1, N)
 for j = 1:N
 	for i = 1:24*num_days+1
-		hourly_energy[i, j] = sol((i-1)*3600)[4*j]
-		# hourly_theta[i, j] = sol((i-1)*3600)[4*j - 2]
+		hourly_energy[i, j] = sol((i-1)*3600)[4*j] #?????? the mistake is here? It's not reading appropriatly
 	end
 end
 plot(hourly_energy)
-plot(hourly_theta)
 
 begin
 	# ILC power needed for a certain number of days
