@@ -20,9 +20,9 @@ function (hu::HourlyUpdate)(integrator)
 
 	# the following lines: last hour letzte Stunde auf Integral der Stunde davor setzen
 	for j = 1:N
-		integrator.p[1][j].mismatch_yesterday[last_hour] = integrator.u[4*j]
+		integrator.p[1].mismatch_yesterday[last_hour, j] = integrator.u[4*j]
 		integrator.u[4*j] = 0.
-		integrator.p[1][j].current_background_power = integrator.p[1][j].daily_background_power[hour]
+		integrator.p[1].current_background_power[j] = integrator.p[1].daily_background_power[hour, j]
 	end
 	# Why is the abs. value needed ?
 	# integrator.u[power_abs_idx] .= 0.
@@ -30,9 +30,7 @@ function (hu::HourlyUpdate)(integrator)
 end
 
 function DailyUpdate(integrator)
-	for j = 1:N
-		integrator.p[1][j].daily_background_power = integrator.p[1][j].Q * (integrator.p[1][j].daily_background_power
-		+ integrator.p[1][j].kappa * integrator.p[1][j].mismatch_yesterday)
-	end
+	integrator.p[1].daily_background_power = integrator.p[1].Q * (integrator.p[1].daily_background_power
+	+ integrator.p[1].kappa * integrator.p[1].mismatch_yesterday)
 	nothing
 end

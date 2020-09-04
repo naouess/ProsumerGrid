@@ -1,18 +1,20 @@
-using NetworkDynamics, Parameters
 begin
 	dir = @__DIR__
-	include("$dir/PowerLine.jl")
-	include("$dir/structs.jl")
+	include("$dir/Structs.jl")
 end
-abstract type AbstractNode end
 
-struct PV <: AbstractNode
-        ξ
-        η_gen
-        LI
-        M_inv
+## Helper function
+@inline function total_flow!(net_flow, e_s, e_d, x)
+    @inbounds for e in e_s
+        net_flow -= e[1] * x
+    end
+    @inbounds for e in e_d
+        net_flow += e[1] * x
+    end
+	nothing
 end
-PV(; ξ, η_gen, LI, M_inv) = PV(ξ, η_gen, LI, M_inv)
+
+## Defining construct_vertex function to describe node dynamics
 function construct_vertex(par::PV)
     ξ = par.ξ
     η_gen = par.η_gen
@@ -22,33 +24,21 @@ function construct_vertex(par::PV)
     M_inv = par.M_inv
 
     function PVfunction!(dx, x, e_s, e_d, p, t)
-		ϕ = view(x, 1)
-		ω = view(x, 2)
-		χ = view(x, 3)
+		u_ILC = p.current_background_power[1]
 
-		u_ILC = p.current_background_power
-		F = total_flow(ϕ, e_s, e_d)
+		u_LI = - K_P * x[2] + x[3]
 
-		u_LI = - K_P * ω[1] + χ[1]
-
-		dx[1] = ω[1]
-		dx[2] = ((- ξ(t)[1] + (u_LI + u_ILC)) * η_gen(t) - F) * M_inv
-		dx[3] = (- ω[1] - K_I * χ[1]) * T_inv
-		dx[4] = - K_P * ω[1] + χ[1]
+		dx[1] = x[2]
+		dx[2] = (- ξ(t) + u_LI + u_ILC) * M_inv
+		total_flow!(dx[2], e_s, e_d, M_inv)
+		dx[3] = (- x[2] - K_I * x[3]) * T_inv
+		dx[4] = u_LI
 
 		nothing
 	end
     ODEVertex(f! = PVfunction!, dim = 4, sym = [:ϕ, :ω, :χ, :integrated_LI])
 end
 
-struct Load <: AbstractNode
-        ξ
-        η_load
-        LI
-        M_inv
-end
-
-Load(; ξ, η_load, LI, M_inv) = Load(ξ, η_load, LI, M_inv)
 function construct_vertex(par::Load)
 	ξ = par.ξ
     η_load = par.η_load
@@ -58,33 +48,45 @@ function construct_vertex(par::Load)
 	M_inv = par.M_inv
 
 	function Loadfunction!(dx, x, e_s, e_d, p, t)
-		ϕ = view(x, 1)
-		ω = view(x, 2)
-		χ = view(x, 3)
+		u_ILC = p.current_background_power[2]
 
-		u_ILC = p.current_background_power
-		F = total_flow(ϕ, e_s, e_d)
+		u_LI = - K_P * x[2] + x[3]
 
-		u_LI = - K_P * ω[1] + χ[1]
-
-		dx[1] = ω[1]
-		dx[2] = ((- ξ(t)[1] + (u_LI + u_ILC)) / η_load(t) - F) * M_inv
-		dx[3] = (- ω[1] - K_I * χ[1]) * T_inv
-		dx[4] = - K_P * ω[1] + χ[1]
+		dx[1] = x[2]
+		dx[2] = (- ξ(t) + u_LI + u_ILC) * M_inv
+		total_flow!(dx[2], e_s, e_d, M_inv)
+		dx[3] = (- x[2] - K_I * x[3]) * T_inv
+		dx[4] = u_LI
 
 		nothing
     end
     ODEVertex(f! = Loadfunction!, dim = 4, sym = [:ϕ, :ω, :χ, :integrated_LI])
 end
 
-struct Slack <: AbstractNode
-        ξ
-        η_gen
-        LI
-        M_inv
+function construct_vertex(par::Load2)
+	ξ = par.ξ
+    η_load = par.η_load
+    K_P = par.LI.kp
+	K_I = par.LI.ki
+	T_inv = par.LI.T_inv
+	M_inv = par.M_inv
+
+	function Loadfunction2!(dx, x, e_s, e_d, p, t)
+		u_ILC = p.current_background_power[4]
+
+		u_LI = - K_P * x[2] + x[3]
+
+		dx[1] = x[2]
+		dx[2] = (- ξ(t) + u_LI + u_ILC) * M_inv
+		total_flow!(dx[2], e_s, e_d, M_inv)
+		dx[3] = (- x[2] - K_I * x[3]) * T_inv
+		dx[4] = u_LI
+
+		nothing
+    end
+    ODEVertex(f! = Loadfunction2!, dim = 4, sym = [:ϕ, :ω, :χ, :integrated_LI])
 end
 
-Slack(; ξ, η_gen, LI, M_inv) = Slack(ξ, η_gen, LI, M_inv)
 function construct_vertex(par::Slack)
     ξ = par.ξ
     η_gen = par.η_gen
@@ -94,21 +96,17 @@ function construct_vertex(par::Slack)
 	M_inv = par.M_inv
 
     function Slackfunction!(dx, x, e_s, e_d, p, t)
-		ϕ = view(x, 1)
-		ω = view(x, 2)
-		χ = view(x, 3)
+		u_ILC = p.current_background_power[3]
 
-		u_ILC = p.current_background_power
-		F = total_flow(ϕ, e_s, e_d)
+		u_LI = - K_P * x[2] + x[3]
 
-		u_LI = - K_P * ω[1] + χ[1]
-
-		dx[1] = ω[1]
-		dx[2] = ((- ξ(t)[1] + (u_LI + u_ILC)) * η_gen(t) - F) * M_inv
-		dx[3] = (- ω[1] - K_I * χ[1]) * T_inv
-		dx[4] = - K_P * ω[1] + χ[1]
+		dx[1] = x[2]
+		dx[2] = (- ξ(t) + u_LI + u_ILC) * M_inv
+		total_flow!(dx[2], e_s, e_d, M_inv)
+		dx[3] = (- x[2] - K_I * x[3]) * T_inv
+		dx[4] = u_LI
 
 		nothing
-	end 
+	end
     ODEVertex(f! = Slackfunction!, dim = 4, sym = [:ϕ, :ω, :χ, :integrated_LI])
 end
