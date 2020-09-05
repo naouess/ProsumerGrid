@@ -1,4 +1,4 @@
-"""
+#=
 This code is a reproduction of the example impelemented in the paper
 "Iterative learning control in prosumer-based microgrids with hierarchical control"
 by Strenge et al. (2019)
@@ -10,8 +10,8 @@ by Strenge et al. (2019)
 # 10 days
 
 Plots are saved in the folder "./plots/Reprod_ILCpaper/"
+=#
 
-"""
 begin
 	using NetworkDynamics, LightGraphs, Parameters, DifferentialEquations, GraphPlot
 	using Interpolations
@@ -34,11 +34,11 @@ end
 
 begin
 	dir = @__DIR__
+	include("$dir/src/Structs.jl")
+	include("$dir/demand/SyntheticDemand.jl")
 	include("$dir/src/PowerNodes.jl")
 	include("$dir/src/PowerLine.jl")
-	include("$dir/src/Structs.jl")
 	include("$dir/src/UpdateFunctions.jl")
-	include("$dir/demand/SytheticDemand.jl")
 end
 
 # Parameters for ILC controller
@@ -116,9 +116,6 @@ begin
 			hourly_energy[i, j] = sol((i-1)*3600)[4*j]
 		end
 	end
-
-	# ILC power needed for a certain number of days
-	# Also as norm and mean energy over each day
 
 	# Values of ILC_power for day 0:
 	ILC_power = zeros(num_days+2, 24, N)
@@ -203,16 +200,20 @@ begin
 	savefig("$dir/plots/Reprod_ILCpaper/demand_seconds_node_$(node)_hetero.png")
 end
 
-l = @layout [a b; c d]
-plot_demand = plot(p1,p2,p3,p4,layout = l)
-savefig(plot_demand, "$dir/plots/Reprod_ILCpaper/demand_seconds_all_nodes_hetero.png")
+begin
+	l = @layout [a b; c d]
+	plot_demand = plot(p1,p2,p3,p4,layout = l)
+	savefig(plot_demand, "$dir/plots/Reprod_ILCpaper/demand_seconds_all_nodes_hetero.png")
+end
 
-psum = plot()
-ILC_power_hourly_mean_sum = vcat(ILC_power[:,:,1]'...) .+ vcat(ILC_power[:,:,2]'...) .+ vcat(ILC_power[:,:,3]'...) .+ vcat(ILC_power[:,:,4]'...)
-plot!(0:num_days*l_day, t -> (dd(t)[1] .+ dd(t)[2] .+ dd(t)[3] .+ dd(t)[4]), alpha=0.2, label = latexstring("\$P^d_j\$"),linewidth=3, linestyle=:dot)
-plot!(1:3600:24*num_days*3600,(hourly_energy[1:num_days*24,1] + hourly_energy[1:num_days*24,2] + hourly_energy[1:num_days*24,3] + hourly_energy[1:num_days*24,4])./3600, label=latexstring("y_j^{c,h}"),linewidth=3, linestyle=:dash)
-plot!(1:3600:num_days*24*3600,  ILC_power_hourly_mean_sum[1:num_days*24], label=latexstring("\$u_j^{ILC}\$"), xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=14,
-               xtickfontsize=18,legend=false, legendfontsize=10, linewidth=3,xaxis=("days [c]",font(14)),  yaxis=("normed power",font(14)),lc =:black, margin=5Plots.mm)
-# ylims!(-0.7,1.5)
-# title!("Initial convergence")
-savefig(psum,"$dir/plots/Reprod_ILCpaper/demand_seconds_sum_hetero.png")
+begin
+	psum = plot()
+	ILC_power_hourly_mean_sum = vcat(ILC_power[:,:,1]'...) .+ vcat(ILC_power[:,:,2]'...) .+ vcat(ILC_power[:,:,3]'...) .+ vcat(ILC_power[:,:,4]'...)
+	plot!(0:num_days*l_day, t -> (dd(t)[1] .+ dd(t)[2] .+ dd(t)[3] .+ dd(t)[4]), alpha=0.2, label = latexstring("\$P^d_j\$"),linewidth=3, linestyle=:dot)
+	plot!(1:3600:24*num_days*3600,(hourly_energy[1:num_days*24,1] + hourly_energy[1:num_days*24,2] + hourly_energy[1:num_days*24,3] + hourly_energy[1:num_days*24,4])./3600, label=latexstring("y_j^{c,h}"),linewidth=3, linestyle=:dash)
+	plot!(1:3600:num_days*24*3600,  ILC_power_hourly_mean_sum[1:num_days*24], label=latexstring("\$u_j^{ILC}\$"), xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=14,
+	               xtickfontsize=18,legend=false, legendfontsize=10, linewidth=3,xaxis=("days [c]",font(14)),  yaxis=("normed power",font(14)),lc =:black, margin=5Plots.mm)
+	# ylims!(-0.7,1.5)
+	# title!("Initial convergence")
+	savefig(psum,"$dir/plots/Reprod_ILCpaper/demand_seconds_sum_hetero.png")
+end
