@@ -4,11 +4,14 @@ PeriodicCallback function acting on the `integrator` that is called every simula
 """
 function HourlyUpdate(integrator)
 	indices = idx_containing(integrator.f, :integrated_LI)
+	indices_abs = idx_containing(integrator.f, :integrated_abs_LI)
+
 	hour = mod(round(Int, integrator.t/3600.), 24) + 1
 	last_hour = mod(hour-2, 24) + 1
 	for idx in 1:length(indices)
 		integrator.f.f.vertices![idx].f!.ILC.mismatch_yesterday[last_hour] = integrator.u[indices[idx]]
 		integrator.u[indices[idx]] = 0.
+		integrator.u[indices_abs[idx]] = 0.
 		integrator.f.f.vertices![idx].f!.ILC.current_background_power = integrator.f.f.vertices![idx].f!.ILC.daily_background_power[hour]
 	end
 
@@ -33,7 +36,33 @@ function DailyUpdate(integrator)
 	nothing
 end
 
+## Some experimentations with callbacks ~~ Currently not in use.
 function watch_storage_1(network)
+
+	indices = idx_containing(network, :level)
+	# storage_nodes = syms_containing(network, :level)
+	# indices_control = idx_containing(network, :integrated_LI)
+
+    function condition(out, u, t, integrator)
+		out[2] = u[indices[1]] - 1.
+		out[1] = u[indices[1]]
+    end
+
+    function affect!(integrator, idx)
+		@info "bounds touched at t=$(integrator.t)."
+		if idx == 1
+			integrator.u[indices[1]] = 0.
+		end
+		if idx == 2
+			integrator.u[indices[1]] = 1.
+		end
+		# integrator.f.f.vertices![4].f!.ILC.current_background_power = - 0.98 * integrator.f.f.vertices![4].f!.ILC.current_background_power
+		# integrator.u[indices[1] - 1] = - 0.98 * integrator.u[indices[1] - 1]
+    end
+    return VectorContinuousCallback(condition, affect!, 2)
+end
+
+function watch_storage_X(network)
 
 	indices = idx_containing(network, :level)
 	# storage_nodes = syms_containing(network, :level)
@@ -69,7 +98,7 @@ function watch_storage_1(network)
     return DiscreteCallback(condition, affect!)
 end
 
-function watch_storage_2(network)
+function watch_storage_XX(network)
 
 	indices = idx_containing(network, :level)
 	# storage_nodes = syms_containing(network, :level)

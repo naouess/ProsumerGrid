@@ -73,6 +73,7 @@ function (pv::PV)(dx, x, e_s, e_d, p, t)
 	dx[2] = (pv.ξ(t) * pv.η_gen(t) + u_LI + u_ILC + F) * pv.M_inv
 	dx[3] = (- x[2] - pv.LI.ki * x[3]) * pv.LI.T_inv
 	dx[4] = u_LI
+	dx[5] = abs(u_LI)
 
 	nothing
 end
@@ -108,6 +109,7 @@ function (load::Load)(dx, x, e_s, e_d, p, t)
 	dx[2] = (- load.ξ(t) / load.η_load(t) + u_LI + u_ILC + F) * load.M_inv
 	dx[3] = (- x[2] - load.LI.ki * x[3]) * load.LI.T_inv
 	dx[4] = u_LI
+	dx[5] = abs(u_LI)
 
 	nothing
 end
@@ -123,6 +125,7 @@ function (slack::Slack)(dx, x, e_s, e_d, p, t)
 	dx[2] = (slack.ξ(t) * slack.η_gen(t) + u_LI + u_ILC + F) * slack.M_inv # slack.ξ(t) * slack.η_gen(t) +
 	dx[3] = (- x[2] - slack.LI.ki * x[3]) * slack.LI.T_inv
 	dx[4] = u_LI
+	dx[5] = abs(u_LI)
 
 	nothing
 end
@@ -132,7 +135,7 @@ function (batt::Battery)(dx, x, e_s, e_d, p, t)
 	u_LI = - batt.LI.kp * x[2] + x[3]
 
 	F = total_flow(e_s, e_d)
-	if x[5] <= 0.
+	if x[5] <= 0.4 # max. DoD = 60%
 		F = max(0., F)
 	end
 	if x[5] >= 1.
@@ -152,10 +155,11 @@ function (batt::Battery)(dx, x, e_s, e_d, p, t)
 	dx[2] = (u_LI + u_ILC + F) * batt.M_inv
 	dx[3] = (- x[2] - batt.LI.ki * x[3]) * batt.LI.T_inv
 	dx[4] = u_LI
+	dx[6] = abs(u_LI)
 	if F < 0
-		dx[5] =  -(u_LI + u_ILC) / batt.η.gen(t) / batt.C
+		dx[5] =  -(u_LI + u_ILC) / batt.η.gen(t) / batt.C / 900 # 3600
 	else
-		dx[5] =  -(u_LI + u_ILC) * batt.η.load(t) / batt.C
+		dx[5] =  -(u_LI + u_ILC) * batt.η.load(t) / batt.C / 900 # 3600
 	end
 	nothing
 end
@@ -190,21 +194,21 @@ end
 
 function constructor(f::PV)
 	# @assert
-	return ODEVertex(f! = f, dim = 4, sym = [:ϕ, :ω, :χ, :integrated_LI])
+	return ODEVertex(f! = f, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_abs_LI])
 end
 function constructor(f::Wind)
 	# @assert
-	return ODEVertex(f! = f, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :curtailed])
+	return ODEVertex(f! = f, dim = 6, sym = [:ϕ, :ω, :χ, :integrated_LI, :curtailed, :integrated_abs_LI])
 end
 function constructor(f::Load)
-	return ODEVertex(f! = f, dim = 4, sym = [:ϕ, :ω, :χ, :integrated_LI])
+	return ODEVertex(f! = f, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_abs_LI])
 end
 function constructor(f::Slack)
-	return ODEVertex(f! = f, dim = 4, sym = [:ϕ, :ω, :χ, :integrated_LI])
+	return ODEVertex(f! = f, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_abs_LI])
 end
 
 function constructor(f::Battery)
-	return ODEVertex(f! = f, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :level])
+	return ODEVertex(f! = f, dim = 6, sym = [:ϕ, :ω, :χ, :integrated_LI, :level, :integrated_abs_LI])
 end
 
 function constructor(f::ThermalStorage)
