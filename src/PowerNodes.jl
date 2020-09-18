@@ -122,7 +122,7 @@ function (slack::Slack)(dx, x, e_s, e_d, p, t)
 	# @info "Slack F: $F"
 
 	dx[1] = x[2]
-	dx[2] = (slack.ξ(t) * slack.η_gen(t) + u_LI + u_ILC + F) * slack.M_inv # slack.ξ(t) * slack.η_gen(t) +
+	dx[2] = (slack.ξ(t) * slack.η_gen(t) + u_LI + u_ILC + F) * slack.M_inv
 	dx[3] = (- x[2] - slack.LI.ki * x[3]) * slack.LI.T_inv
 	dx[4] = u_LI
 	dx[5] = abs(u_LI)
@@ -157,9 +157,9 @@ function (batt::Battery)(dx, x, e_s, e_d, p, t)
 	dx[4] = u_LI
 	dx[6] = abs(u_LI)
 	if F < 0
-		dx[5] =  -(u_LI + u_ILC) / batt.η.gen(t) / batt.C / 900 # 3600
+		dx[5] =  -(u_LI + u_ILC) / batt.η.gen(t) / batt.C / 3600 # 900
 	else
-		dx[5] =  -(u_LI + u_ILC) * batt.η.load(t) / batt.C / 900 # 3600
+		dx[5] =  -(u_LI + u_ILC) * batt.η.load(t) / batt.C / 3600 # 900
 	end
 	nothing
 end
@@ -171,19 +171,23 @@ function (ts::ThermalStorage)(dx, x, e_s, e_d, p, t)
 	u_LI = - ts.LI.kp * x[2] + x[3]
 
 	F = total_flow(e_s, e_d)
-	dl = 0
-
-	if (u_LI + u_ILC) > 0
-		dl -= u_LI + u_ILC / ts.η.gen / ts.C
-	else
-		dl += u_LI + u_ILC * ts.η.load / ts.C
+	if x[5] <= 0. # adjust value
+		F = max(0., F)
+	end
+	if x[5] >= 1.
+		F = min(0., F)
 	end
 
 	dx[1] = x[2]
 	dx[2] = (u_LI + u_ILC + F) * ts.M_inv
 	dx[3] = (- x[2] - ts.LI.ki * x[3]) * ts.LI.T_inv
 	dx[4] = u_LI
-	dx[5] = dl - a_loss * (x[5] - l_ss)
+	dx[6] = abs(u_LI)
+	if F < 0
+		dx[5] =  -(u_LI + u_ILC) / ts.η.gen(t) / ts.C / 3600 # - a_loss * (x[5] - l_ss) # 900
+	else
+		dx[5] =  -(u_LI + u_ILC) * ts.η.load(t) / ts.C / 3600 # - a_loss * (x[5] - l_ss) # 900
+	end
 
 	nothing
 end
@@ -212,5 +216,5 @@ function constructor(f::Battery)
 end
 
 function constructor(f::ThermalStorage)
-	return ODEVertex(f! = f, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :level])
+	return ODEVertex(f! = f, dim = 6, sym = [:ϕ, :ω, :χ, :integrated_LI, :level, :integrated_abs_LI])
 end
