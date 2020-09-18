@@ -73,18 +73,18 @@ begin
 	nodes = [constructor(myPV), constructor(myLoad), constructor(mySlack), constructor(myBattery)]
 
 	myLine1 = PowerLine(from=1, to=2, K=6.)
-	myLine2 = PowerLine(from=1, to=2, K=6.)
-	myLine3 = PowerLine(from=1, to=2, K=6.)
-	myLine4 = PowerLine(from=1, to=2, K=6.)
-	myLine5 = PowerLine(from=1, to=2, K=6.)
-	mylines = [myLine1, myLine2, myLine3, myLine4, myLine5]
+	myLine2 = PowerLine(from=1, to=4, K=6.)
+	myLine3 = PowerLine(from=3, to=2, K=6.)
+	myLine4 = PowerLine(from=4, to=2, K=6.)
+	# myLine5 = PowerLine(from=1, to=2, K=6.)
+	mylines = [myLine1, myLine2, myLine3, myLine4] #, myLine5]
 	lines = [StaticEdge(f! = myLine, dim = 1) for myLine in mylines]
 
 	g = SimpleGraph(N)
 	add_edge!(g, 1, 2)
 	add_edge!(g, 1, 4)
 	add_edge!(g, 3, 2)
-	add_edge!(g, 3, 4)
+	# add_edge!(g, 3, 4)
 	add_edge!(g, 2, 4)
 
 	nd = network_dynamics(nodes, lines, g)
@@ -94,7 +94,7 @@ gplot(g, nodelabel=1:4, edgelabel = 1:5)
 begin
 	tspan = (0., num_days*l_day)
 	# i0 = [0., 0., 0., -dd(0)[1], 0., 0., 0., 0., dd(0)[2], 0., 0., 0., 0., 0., 0., 0., 0., dd(0)[4], 0.]
-	i0 = ones(21)
+	i0 = ones(21) * 0.5
 
 	# Define the SavingCallback:
 	# saved_edgevalues = SavedValues(Float64, Array{Float64, 1})
