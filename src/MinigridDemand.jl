@@ -1,6 +1,6 @@
 using JLD2, FileIO, GraphIO, CSV, DataFrames
-using Statistics
-using StatsBase
+# using Statistics
+# using StatsBase
 
 begin
 	## Generating demand function out of real minigrid data
