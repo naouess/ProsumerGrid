@@ -6,111 +6,137 @@ mutable struct PV <: AbstractNode
         η_gen
         LI :: LI
 		ILC :: ILC
-        M_inv
+        M
+		max_inverter
 end
-PV(; ξ, η_gen, LI, ILC, M_inv) = PV(ξ, η_gen, LI, ILC, M_inv)
+PV(; ξ, η_gen, LI, M, max_inverter = 0.) = PV(ξ, η_gen, LI, ILC, M, max_inverter)
 
+# TODO finish node definition
 mutable struct Wind <: AbstractNode
         ξ
         η_gen
         LI :: LI
 		ILC :: ILC
-        M_inv
+        M
 end
-Wind(; ξ, η_gen, LI, ILC, M_inv) = Wind(ξ, η_gen, LI, ILC, M_inv)
+Wind(; ξ, η_gen, LI, ILC, M) = Wind(ξ, η_gen, LI, ILC, M)
 
-# TODO: rename Slack ?
 mutable struct Slack <: AbstractNode
-        ξ
         η_gen
         LI :: LI
 		ILC :: ILC
-        M_inv
+        M
+		max
 end
-Slack(; ξ, η_gen, LI, ILC, M_inv) = Slack(ξ, η_gen, LI, ILC, M_inv)
+Slack(; η_gen, LI, ILC, M, max = 0) = Slack(η_gen, LI, ILC, M, max)
 
 mutable struct Load <: AbstractNode
         ξ
         η_load
         LI :: LI
 		ILC :: ILC
-        M_inv
+        M
 end
-Load(; ξ, η_load, LI, ILC, M_inv) = Load(ξ, η_load, LI, ILC, M_inv)
+Load(; ξ, η_load, LI, ILC, M) = Load(ξ, η_load, LI, ILC, M)
 
 mutable struct Battery <: AbstractNode
         η :: η
         LI :: LI
 		ILC :: ILC
-        M_inv
+        M
 		C
-		# F
+		max_inverter
+		σ
+		SOC_min
+		SOC_max
 end
-Battery(; η, LI, ILC, M_inv, C) = Battery(η, LI, ILC, M_inv, C)
+Battery(; η, LI, ILC, M, C, σ = 0., SOC_min = 0., SOC_max = 1., max_inverter=0.) = Battery(η, LI, ILC, M, C, σ, SOC_min, SOC_max, max_inverter)
 
 mutable struct ThermalStorage <: AbstractNode
         η :: η
         LI :: LI
 		ILC :: ILC
-        M_inv
+        M
 		C
 		a_loss
 		l_ss
+		SOC_min
+		SOC_max
 end
-ThermalStorage(; η, LI, ILC, M_inv, C, a_loss, l_ss) = ThermalStorage(η, LI, ILC, M_inv, C, a_loss, l_ss)
+ThermalStorage(; η, LI, ILC, M, C, a_loss = 0., l_ss = 0.,SOC_min = 0., SOC_max = 1.) = ThermalStorage(η, LI, ILC, M, C, a_loss, l_ss)
+
+mutable struct GenericNode <: AbstractNode
+		ξ
+        η :: η
+        LI :: LI
+		ILC :: ILC
+        M
+		C
+		max_inverter
+		σ
+		SOC_min
+		SOC_max
+end
+GenericNode(; ξ, η, LI, ILC, M, C, σ = 0., SOC_min = 0., SOC_max = 1., max_inverter=0.) = Battery(ξ, η, LI, ILC, M, C, σ, SOC_min, SOC_max, max_inverter)
 
 # export PV, Load, Slack, Battery ...
+
+## Define generic node
+function (gn::GenericNode)(dx, x, e_s, e_d, p, t)
+	u_ILC = pv.ILC.current_background_power
+	u_LI = - pv.LI.kp * x[2] + x[3]
+
+	P_control = u_LI + u_ILC
+
+	F = total_flow(e_s, e_d)
+	if  gn.max_inverter != 0. && P_control >= gn.max_inverter
+		F = max(- pv.max_inverter, F)
+	end
+
+	dx[1] = x[2]
+	dx[2] = (pv.ξ(t) + (u_LI + u_ILC) / pv.η_gen(t) + F) / pv.M
+	dx[3] = (- x[2] - pv.LI.ki * x[3]) * pv.LI.T
+	dx[4] = u_LI
+	dx[5] = abs(u_LI)
+
+	nothing
+end
 
 ## Define node dynamics depending on type
 function (pv::PV)(dx, x, e_s, e_d, p, t)
 	u_ILC = pv.ILC.current_background_power
 	u_LI = - pv.LI.kp * x[2] + x[3]
 
+	P_control = u_LI + u_ILC
+
 	F = total_flow(e_s, e_d)
-	# @info "PV F: $F"
+
+	if pv.max_inverter && P_control >= pv.max_inverter
+		F = max(- pv.max_inverter, F)
+	end
 
 	dx[1] = x[2]
-	dx[2] = (pv.ξ(t) * pv.η_gen(t) + u_LI + u_ILC + F) * pv.M_inv
-	dx[3] = (- x[2] - pv.LI.ki * x[3]) * pv.LI.T_inv
+	dx[2] = (pv.ξ(t) + (u_LI + u_ILC) / pv.η_gen(t) + F) / pv.M
+	dx[3] = (- x[2] - pv.LI.ki * x[3]) / pv.LI.T
 	dx[4] = u_LI
 	dx[5] = abs(u_LI)
-
-	nothing
-end
-
-# TODO
-# check this definition again
-function (wind::Wind)(dx, x, e_s, e_d, p, t)
-	# TODO: if curtailable w =/= 0 else w = 0
-	u_ILC = wind.ILC.current_background_power
-	u_LI = - wind.LI.kp * x[2] + x[3]
-
-	F = total_flow(e_s, e_d)
-	w = wind.ξ(t) + (u_LI + u_ILC) / wind.η_gen(t)
-
-	dx[1] = x[2]
-	dx[2] = (u_LI + u_ILC + F) * wind.M_inv
-	dx[3] = (- x[2] - wind.LI.ki * x[3]) * wind.LI.T_inv
-	dx[4] = u_LI
-	dx[5] = w
 
 	nothing
 end
 
 function (load::Load)(dx, x, e_s, e_d, p, t)
-	# TODO: ILC? u_ILC = load.ILC.current_background_power: u_ILC = 0
 	u_ILC = load.ILC.current_background_power
 	u_LI = - load.LI.kp * x[2] + x[3]
 
+	P_load = u_LI + u_ILC
+
 	F = total_flow(e_s, e_d)
-	# @info "Load F: $F"
 
 	dx[1] = x[2]
-	dx[2] = (- load.ξ(t) / load.η_load(t) + u_LI + u_ILC + F) * load.M_inv
-	dx[3] = (- x[2] - load.LI.ki * x[3]) * load.LI.T_inv
+	dx[2] = (- load.ξ(t) + P_load * load.η_load(t) + F) / load.M
+	dx[3] = (- x[2] - load.LI.ki * x[3]) / load.LI.T
 	dx[4] = u_LI
 	dx[5] = abs(u_LI)
-
 	nothing
 end
 
@@ -118,12 +144,17 @@ function (slack::Slack)(dx, x, e_s, e_d, p, t)
 	u_ILC = slack.ILC.current_background_power
 	u_LI = - slack.LI.kp * x[2] + x[3]
 
+	P_control = u_LI + u_ILC
+
 	F = total_flow(e_s, e_d)
-	# @info "Slack F: $F"
+
+	if slack.max != 0. && P_control >= slack.max
+		F = max(-slack.max, F)
+	end
 
 	dx[1] = x[2]
-	dx[2] = (slack.ξ(t) * slack.η_gen(t) + u_LI + u_ILC + F) * slack.M_inv
-	dx[3] = (- x[2] - slack.LI.ki * x[3]) * slack.LI.T_inv
+	dx[2] = (P_control + F) * slack.M
+	dx[3] = (- x[2] - slack.LI.ki * x[3]) / slack.LI.T
 	dx[4] = u_LI
 	dx[5] = abs(u_LI)
 
@@ -133,88 +164,60 @@ end
 function (batt::Battery)(dx, x, e_s, e_d, p, t)
 	u_ILC = batt.ILC.current_background_power
 	u_LI = - batt.LI.kp * x[2] + x[3]
+	P_control = u_LI + u_ILC
 
 	F = total_flow(e_s, e_d)
-	if x[5] <= 0.4 # max. DoD = 60%
-		F = max(0., F)
-	end
-	if x[5] >= 1.
+
+	if x[5] >= batt.SOC_max
 		F = min(0., F)
 	end
+	if x[5] <= batt.SOC_min
+		F = max(0., F)
+    end
 
-	# if x[5] <= 0.
-	# 	u_LI = min(0., u_LI)
-	# 	u_ILC = min(0., u_ILC)
-	# end
-	# if x[5] >= 1.
-	# 	u_LI = max(0., u_LI)
-	# 	u_ILC = max(0., u_ILC)
-	# end
+	if batt.max_inverter != 0. && P_control >= batt.max_inverter
+		F = max(- batt.max_inverter, F)
+	end
 
 	dx[1] = x[2]
-	dx[2] = (u_LI + u_ILC + F) * batt.M_inv
-	dx[3] = (- x[2] - batt.LI.ki * x[3]) * batt.LI.T_inv
+	dx[2] = (P_control + F) / batt.M
+	dx[3] = (- x[2] - batt.LI.ki * x[3]) / batt.LI.T
 	dx[4] = u_LI
 	dx[6] = abs(u_LI)
+
 	if F < 0
-		dx[5] =  -(u_LI + u_ILC) / batt.η.gen(t) / batt.C / 3600 # 900
+		dx[5] = - P_control / batt.η.gen(t) / batt.C / 3600 - batt.σ * x[5]
 	else
-		dx[5] =  -(u_LI + u_ILC) * batt.η.load(t) / batt.C / 3600 # 900
+		dx[5] = - P_control * batt.η.load(t) / batt.C / 3600 - batt.σ * x[5]
 	end
 	nothing
 end
 
-# TODO:
-# Define Lossy Storage (and rename)
 function (ts::ThermalStorage)(dx, x, e_s, e_d, p, t)
 	u_ILC = ts.ILC.current_background_power
 	u_LI = - ts.LI.kp * x[2] + x[3]
 
+	P_control = u_LI + u_ILC
+
 	F = total_flow(e_s, e_d)
-	if x[5] <= 0. # adjust value
+	if x[5] <= ts.SOC_min
 		F = max(0., F)
 	end
-	if x[5] >= 1.
+	if x[5] >= ts.SOC_max
 		F = min(0., F)
 	end
 
 	dx[1] = x[2]
-	dx[2] = (u_LI + u_ILC + F) * ts.M_inv
-	dx[3] = (- x[2] - ts.LI.ki * x[3]) * ts.LI.T_inv
+	dx[2] = (u_LI + u_ILC + F) / ts.M
+	dx[3] = (- x[2] - ts.LI.ki * x[3]) / ts.LI.T
 	dx[4] = u_LI
 	dx[6] = abs(u_LI)
+
 	if F < 0
-		dx[5] =  -(u_LI + u_ILC) / ts.η.gen(t) / ts.C / 3600 # - a_loss * (x[5] - l_ss) # 900
+		dx[5] =  - P_control / ts.η.gen(t) / ts.C / 3600 - ts.a_loss * (x[5] - ts.l_ss)
 	else
-		dx[5] =  -(u_LI + u_ILC) * ts.η.load(t) / ts.C / 3600 # - a_loss * (x[5] - l_ss) # 900
+		dx[5] =  - P_control * ts.η.load(t) / ts.C / 3600 - ts.a_loss * (x[5] - ts.l_ss)
 	end
 
 	nothing
-end
-
-## Define constructors for each node type
-# TODO:
-# Add asserts to make sure input parameters are in bound
-
-function constructor(f::PV)
-	# @assert
-	return ODEVertex(f! = f, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_abs_LI])
-end
-function constructor(f::Wind)
-	# @assert
-	return ODEVertex(f! = f, dim = 6, sym = [:ϕ, :ω, :χ, :integrated_LI, :curtailed, :integrated_abs_LI])
-end
-function constructor(f::Load)
-	return ODEVertex(f! = f, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_abs_LI])
-end
-function constructor(f::Slack)
-	return ODEVertex(f! = f, dim = 5, sym = [:ϕ, :ω, :χ, :integrated_LI, :integrated_abs_LI])
-end
-
-function constructor(f::Battery)
-	return ODEVertex(f! = f, dim = 6, sym = [:ϕ, :ω, :χ, :integrated_LI, :level, :integrated_abs_LI])
-end
-
-function constructor(f::ThermalStorage)
-	return ODEVertex(f! = f, dim = 6, sym = [:ϕ, :ω, :χ, :integrated_LI, :level, :integrated_abs_LI])
 end
