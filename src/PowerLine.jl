@@ -4,7 +4,8 @@ mutable struct PowerLine <: AbstractLine
     from
     to
     K
-    PowerLine(; from, to, K) = new(from, to, K)
+    P_cap
+    PowerLine(; from, to, K, P_cap = K) = new(from, to, K, P_cap)
 end
 
 function (edge::PowerLine)(e, v_s, v_d, p, t)
