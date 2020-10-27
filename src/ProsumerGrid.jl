@@ -10,6 +10,7 @@ include("Structs.jl")
 include("PowerLine.jl")
 include("PowerNodes.jl")
 include("UpdateFunctions.jl")
+include("PowerGrid.jl")
 
 # export
 
