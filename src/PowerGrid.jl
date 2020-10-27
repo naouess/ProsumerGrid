@@ -2,7 +2,7 @@
 
 ## Line constructor
 function constructor(f::PowerLine)
-	return StaticEdge(f! = myLine, dim = 1)
+	return StaticEdge(f! = f, dim = 1)
 end
 
 ## Node constructors
