@@ -6,12 +6,13 @@ mutable struct η
 end
 η(; gen, load) = η(gen, load)
 
+# TODO: define default values
 mutable struct LI
 	kp
 	ki
-	T_inv
+	T
 end
-LI(; kp, ki, T_inv) = LI(kp, ki, T_inv)
+LI(; kp, ki, T) = LI(kp, ki, T)
 
 mutable struct ILC
 	kappa
@@ -22,20 +23,6 @@ mutable struct ILC
 	ilc_cover
 	Q
 end
-ILC(; kappa, mismatch_yesterday, daily_background_power, current_background_power, ilc_nodes, ilc_cover, Q) = ILC(kappa, mismatch_yesterday, daily_background_power, current_background_power, ilc_nodes, ilc_cover, Q)
+ILC(; kappa, mismatch_yesterday, daily_background_power, current_background_power, ilc_nodes = 0, ilc_cover = 0, Q) = ILC(kappa, mismatch_yesterday, daily_background_power, current_background_power, ilc_nodes, ilc_cover, Q)
 
 # export ILC, LI, η
-
-## Not used
-# mutable struct compound_pars
-# 	ξ
-# 	ILC::ILC
-# 	LI::LI
-# 	M_inv
-# 	"""
-# 	Constructor
-# 	"""
-# 	function compound_pars(ξ, ILC, LI, M_inv)
-# 			new(ξ, ILC, LI, M_inv)
-# 	end
-# end
