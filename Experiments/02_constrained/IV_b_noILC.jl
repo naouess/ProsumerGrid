@@ -136,12 +136,12 @@ end
 
 begin
 	psum = plot()
-	plot!(0:3600:num_days*l_day, t -> dd(t)[1] - dd(t)[2], alpha=0.2, linewidth=3, linestyle=:dot) #.- dd(t)[2]
+	plot!(0:3600:num_days*l_day, t -> dd(t)[1] - dd(t)[2], alpha=0.7, linewidth=3, linestyle=:dot) #.- dd(t)[2]
 	plot!(1:3600:24*num_days*3600, (LI_exact[1:num_days*24,1] + LI_exact[1:num_days*24,2] + LI_exact[1:num_days*24,3] + LI_exact[1:num_days*24,4]),linewidth=3,
 	linestyle=:dash,
 	        xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=14,
 		     xtickfontsize=18,legend=false, legendfontsize=10,xaxis=("Days",font(10)),  yaxis=("Normed power",font(10)), margin=5Plots.mm)
-	# savefig("$dir/plots/IV_real_noILC_sum_exact.pdf")
+	savefig("$dir/plots/IV_real_noILC_sum_exact.png")
 end
 
 integral = integrals(sol, nd, N, num_days, LI_exact, ILC_power)
@@ -199,23 +199,23 @@ end
 begin
 	node = 1
 	p1 = plot()
-	plot!(0:3600:num_days*l_day, t -> dd(t)[2], alpha=0.2, linewidth=3, linestyle=:dot)
+	plot!(0:3600:num_days*l_day, t -> dd(t)[2], alpha=0.7, linewidth=3, linestyle=:dot)
 	plot!(1:3600:24*num_days*3600, LI_exact[1:num_days*24, node],linewidth=3,
 	xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=10,
 	      xtickfontsize=10, legendfontsize=10,  yaxis=("Normed power",font(10)),legend=false,  margin=5Plots.mm)
 	ylims!(-1,1.)
-	# savefig("$dir/plots/IV_real_noILC_node1.pdf")
+	savefig("$dir/plots/IV_real_noILC_node1.pdf")
 end
 
 begin
 	node = 2
 	p2 = plot()
-	plot!(0:num_days*l_day, t -> dd(t)[1], alpha=0.2,linewidth=3, linestyle=:dot)
+	plot!(0:num_days*l_day, t -> dd(t)[1], alpha=0.7,linewidth=3, linestyle=:dot)
 	plot!(1:3600:24*num_days*3600, LI_exact[1:num_days*24, node],linewidth=3,
 	xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=10,
 	      xtickfontsize=10, legendfontsize=10,  yaxis=("Normed power",font(10)),legend=false,  margin=5Plots.mm)
     ylims!(-1,1)
-	# savefig("$dir/plots/IV_real_noILC_node2.pdf")
+	savefig("$dir/plots/IV_real_noILC_node2.pdf")
 end
 
 begin

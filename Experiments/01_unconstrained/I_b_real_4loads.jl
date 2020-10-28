@@ -98,11 +98,11 @@ end
 begin
 	psum = plot()
 	ILC_power_hourly_mean_sum = vcat(ILC_power[:,:,1]'...) .+ vcat(ILC_power[:,:,2]'...) .+ vcat(ILC_power[:,:,3]'...) .+ vcat(ILC_power[:,:,4]'...)
-	plot!(0:3600:num_days*l_day, t -> dd(t)[1] + dd(t)[2] + dd(t)[3] + dd(t)[4], alpha=0.2, linewidth=3, linestyle=:dot) #.- dd(t)[2]
+	plot!(0:3600:num_days*l_day, t -> dd(t)[1] + dd(t)[2] + dd(t)[3] + dd(t)[4], alpha=0.7, linewidth=3, linestyle=:dot) #.- dd(t)[2]
 	plot!(1:3600:24*num_days*3600, (LI_exact[1:num_days*24,1] + LI_exact[1:num_days*24,2] + LI_exact[1:num_days*24,3] + LI_exact[1:num_days*24,4]),linewidth=3, linestyle=:dash)
 	plot!(1:3600:num_days*24*3600,  ILC_power_hourly_mean_sum[1:num_days*24], xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=14,
 	               xtickfontsize=18,legend=false, legendfontsize=10, linewidth=3,xaxis=("Days",font(14)),  yaxis=("Normed power",font(14)),lc =:black, margin=5Plots.mm)
-	# savefig("$dir/plots/demand_real_10days_sum_kappa075_exact.pdf")
+	savefig("$dir/plots/demand_real_10days_sum_kappa075_exact.pdf")
 end
 
 begin

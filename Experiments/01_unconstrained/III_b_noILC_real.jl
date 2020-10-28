@@ -98,12 +98,12 @@ ILC_power_hourly_mean_sum = zeros(24 * num_days + 1)
 
 begin
 	psum = plot()
-	plot!(0:3600:num_days*l_day, t -> dd(t)[1] - dd(t)[2], alpha=0.2, linewidth=3, linestyle=:dot)
+	plot!(0:3600:num_days*l_day, t -> dd(t)[1] - dd(t)[2], alpha=0.7, linewidth=3, linestyle=:dot)
 	plot!(1:3600:24*num_days*3600, (LI_exact[1:num_days*24,1] + LI_exact[1:num_days*24,2] + LI_exact[1:num_days*24,3] + LI_exact[1:num_days*24,4]),
 	linewidth=3, linestyle=:dash,
 	xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=14,
 	xtickfontsize=18,legend=false, legendfontsize=10,xaxis=("Days",font(10)),  yaxis=("Normed power",font(10)),margin=5Plots.mm)
-	# savefig("$dir/plots/III_real_sum_exact.pdf")
+	savefig("$dir/plots/III_real_sum_exact.pdf")
 end
 
 begin

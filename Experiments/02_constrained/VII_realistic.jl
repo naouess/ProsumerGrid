@@ -93,6 +93,14 @@ plot(sol, vars = syms_containing(nd, "level"), legend = true)
 
 ## Extract hourly control powers
 LI_exact, ILC_power = hourly_energy(sol, nd, num_days, N)
+indices_ω = idx_containing(nd, :ω)
+
+KP = [nd.f.vertices![idx].f!.LI.kp for idx in 1:N]
+for i in 1:24*num_days+1
+	for j in 1:2
+		LI_exact[i, j] = - KP[j] * sol((i-1)*3600)[indices_ω[j]] # + sol((i-1)*3600)[indices_ω[j]+1]
+	end
+end
 indices = idx_containing(nd, :integrated_LI)
 hourly = zeros(24 * num_days + 1, N)
 for j = 1:N
@@ -133,17 +141,30 @@ begin
 		)
 	# savefig("$dir/plots/VII_BatteryStuff.pdf")
 end
+batt = [battery(i) for i in 5*3600*24:3600:24*3600*9] ./ 310
+plot(level[5*24:9*24-1,1],
+	 xticks = (5:24:num_days*24*3600, string.(5:num_days)),
+	 ylims=(0.2, 1),
+	 xaxis=("Days",font(8)),
+	 legend=false,
+	 label = "Simulated",
+	 yaxis=("State of charge in %",font(8)),
+	 margin=5Plots.mm,
+	 linewidth = 1.5,
+)
+plot!(batt, linewidth=1.5, linestyle=:dash, label="Real")
+savefig("$dir/plots/VII_battery")
 
 plot(0:num_days*l_day, t -> dd(t)[1] - dd(t)[2])
 
 begin
 	psum = plot()
 	ILC_power_hourly_mean_sum = vcat(ILC_power[:,:,1]'...) .+ vcat(ILC_power[:,:,2]'...) .+ vcat(ILC_power[:,:,3]'...) .+ vcat(ILC_power[:,:,4]'...)
-	plot!(0:3600:num_days*l_day, t -> dd(t)[1] - dd(t)[2], alpha=0.2, linewidth=3, linestyle=:dot) #.- dd(t)[2]
+	plot!(0:3600:num_days*l_day, t -> dd(t)[1] - dd(t)[2], alpha=0.7, linewidth=3, linestyle=:dot) #.- dd(t)[2]
 	plot!(1:3600:24*num_days*3600, (LI_exact[1:num_days*24,1] + LI_exact[1:num_days*24,2] + LI_exact[1:num_days*24,3] + LI_exact[1:num_days*24,4]),linewidth=3, linestyle=:dash)
 	plot!(1:3600:num_days*24*3600,  ILC_power_hourly_mean_sum[1:num_days*24], xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=14,
 	               xtickfontsize=18,legend=false, legendfontsize=10, linewidth=3,xaxis=("Days",font(10)),  yaxis=("Normed power",font(10)),lc =:black, margin=5Plots.mm)
-	# savefig("$dir/plots/VII_sum_exact.pdf")
+	savefig("$dir/plots/VII_sum_exact.pdf")
 end
 
 begin
@@ -236,49 +257,49 @@ begin
 	node = 1
 	p1 = plot()
 	ILC_power_hourly_mean_node = vcat(ILC_power[:,:,node]'...)
-	plot!(0:3600:num_days*l_day, t -> dd(t)[2], alpha=0.2, linewidth=3, linestyle=:dot)
+	plot!(0:3600:num_days*l_day, t -> dd(t)[2], alpha=0.7, linewidth=3, linestyle=:dot)
 	plot!(1:3600:24*num_days*3600, LI_exact[1:num_days*24, node],linewidth=3,
 	xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=10,
 	      xtickfontsize=10, legendfontsize=10, yaxis=("Normed power",font(10)),legend=false, margin=5Plots.mm)
 	ylims!(-1,1.)
-	# savefig("$dir/plots/VII_node1.pdf")
+	savefig("$dir/plots/VII_node1.png")
 end
 
 begin
 	node = 2
 	p2 = plot()
 	ILC_power_hourly_mean_node = vcat(ILC_power[:,:,node]'...)
-	plot!(0:num_days*l_day, t -> dd(t)[1], alpha=0.2,linewidth=3, linestyle=:dot)
+	plot!(0:num_days*l_day, t -> dd(t)[1], alpha=0.7,linewidth=3, linestyle=:dot)
 	plot!(1:3600:24*num_days*3600, LI_exact[1:num_days*24, node],linewidth=3,
 	# plot!(1:3600:num_days*24*3600, ILC_power_hourly_mean_node[1:num_days*24],
 	xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=10, #linewidth=3, lc =:black,
 	      xtickfontsize=10, legendfontsize=10, yaxis=("Normed power",font(10)),legend=false, margin=5Plots.mm)
     ylims!(-1,1)
-	# savefig("$dir/plots/VII_node2.pdf")
+	savefig("$dir/plots/VII_node2.png")
 end
 
 begin
 	node = 3
 	p3 = plot()
 	ILC_power_hourly_mean_node = vcat(ILC_power[:,:,node]'...)
-	plot!(0:num_days*l_day, t -> 0, alpha=0.2,linewidth=3, linestyle=:dot)
+	plot!(0:num_days*l_day, t -> 0, alpha=0.7,linewidth=3, linestyle=:dot)
 	plot!(1:3600:24*num_days*3600, LI_exact[1:num_days*24, node],linewidth=3)
 	plot!(1:3600:num_days*24*3600, ILC_power_hourly_mean_node[1:num_days*24], xticks = (1:3600*24:num_days*24*3600+1, string.(0:num_days)), ytickfontsize=10,
 	      xtickfontsize=10, legendfontsize=10, linewidth=3, yaxis=("Normed power",font(10)),legend=false, lc =:black, margin=5Plots.mm)
 	ylims!(-1,1)
-	# savefig("$dir/plots/VII_node3.pdf")
+	savefig("$dir/plots/VII_node3.png")
 end
 
 begin
 	node = 4
 	p4 = plot()
 	ILC_power_hourly_mean_node = vcat(ILC_power[:,:,node]'...)
-	plot!(0:num_days*l_day, t -> 0., alpha=0.2,linewidth=3, linestyle=:dot)
+	plot!(0:num_days*l_day, t -> 0., alpha=0.7,linewidth=3, linestyle=:dot)
 	plot!(1:3600:24*num_days*3600, LI_exact[1:num_days*24, node], linewidth=3)
 	plot!(1:3600:num_days*24*3600, ILC_power_hourly_mean_node[1:num_days*24], xticks = (0:3600*24:num_days*24*3600, string.(0:num_days)), ytickfontsize=10,
 	      xtickfontsize=10, legendfontsize=10, linewidth=3, yaxis=("Normed power",font(10)),legend=false, lc =:black, margin=5Plots.mm)
 	ylims!(-1,1)
-	# savefig("$dir/plots/VII_node4.pdf")
+	savefig("$dir/plots/VII_node4.png")
 end
 
 node = 3
