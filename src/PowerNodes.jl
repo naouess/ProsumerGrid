@@ -83,21 +83,35 @@ GenericNode(; ξ, η, LI, ILC, M, C, σ = 0., SOC_min = 0., SOC_max = 1., max_in
 
 ## Define generic node
 function (gn::GenericNode)(dx, x, e_s, e_d, p, t)
-	u_ILC = pv.ILC.current_background_power
-	u_LI = - pv.LI.kp * x[2] + x[3]
+	u_ILC = gn.ILC.current_background_power
+	u_LI = - gn.LI.kp * x[2] + x[3]
 
 	P_control = u_LI + u_ILC
 
 	F = total_flow(e_s, e_d)
+
+	if x[5] >= gn.SOC_max
+		F = min(0., F)
+	end
+	if x[5] <= gn.SOC_min
+		F = max(0., F)
+	end
+
 	if  gn.max_inverter != 0. && P_control >= gn.max_inverter
-		F = max(- pv.max_inverter, F)
+		F = max(- gn.max_inverter, F)
 	end
 
 	dx[1] = x[2]
-	dx[2] = (pv.ξ(t) + (u_LI + u_ILC) / pv.η_gen(t) + F) / pv.M
+	dx[2] = (gn.ξ(t) + (u_LI + u_ILC) / gn.η_gen(t) + F) / pv.M
 	dx[3] = (- x[2] - pv.LI.ki * x[3]) * pv.LI.T
 	dx[4] = u_LI
-	dx[5] = abs(u_LI)
+	dx[6] = abs(u_LI)
+
+	if F < 0
+		dx[5] = F / gn.η.gen(t) / batt.C / 3600 - gn.σ * x[5]
+	else
+		dx[5] = F * gn.η.load(t) / batt.C / 3600 - gn.σ * x[5]
+	end
 
 	nothing
 end
