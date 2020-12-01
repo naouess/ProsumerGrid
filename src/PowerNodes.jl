@@ -9,7 +9,7 @@ mutable struct PV <: AbstractNode
         M
 		max_inverter
 end
-PV(; ξ, η_gen, LI, M, max_inverter = 0.) = PV(ξ, η_gen, LI, ILC, M, max_inverter)
+PV(; ξ, η_gen, LI, ILC, M, max_inverter = 0.) = PV(ξ, η_gen, LI, ILC, M, max_inverter)
 
 # TODO finish node definition
 mutable struct Wind <: AbstractNode
@@ -77,7 +77,7 @@ mutable struct GenericNode <: AbstractNode
 		SOC_min
 		SOC_max
 end
-GenericNode(; ξ, η, LI, ILC, M, C, σ = 0., SOC_min = 0., SOC_max = 1., max_inverter=0.) = Battery(ξ, η, LI, ILC, M, C, σ, SOC_min, SOC_max, max_inverter)
+GenericNode(; ξ, η, LI, ILC, M, C, σ = 0., SOC_min = 0., SOC_max = 1., max_inverter = 0.) = Battery(ξ, η, LI, ILC, M, C, σ, SOC_min, SOC_max, max_inverter)
 
 # export PV, Load, Slack, Battery ...
 
@@ -103,7 +103,7 @@ function (gn::GenericNode)(dx, x, e_s, e_d, p, t)
 
 	dx[1] = x[2]
 	dx[2] = (gn.ξ(t) + (u_LI + u_ILC) / gn.η_gen(t) + F) / pv.M
-	dx[3] = (- x[2] - pv.LI.ki * x[3]) * pv.LI.T
+	dx[3] = (- x[2] - pv.LI.ki * x[3]) / pv.LI.T
 	dx[4] = u_LI
 	dx[6] = abs(u_LI)
 
@@ -125,7 +125,7 @@ function (pv::PV)(dx, x, e_s, e_d, p, t)
 
 	F = total_flow(e_s, e_d)
 
-	if pv.max_inverter && P_control >= pv.max_inverter
+	if pv.max_inverter != 0. && P_control >= pv.max_inverter
 		F = max(- pv.max_inverter, F)
 	end
 
