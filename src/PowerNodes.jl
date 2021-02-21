@@ -82,13 +82,16 @@ GenericNode(; ξ, η, LI, ILC, M, C, σ = 0., SOC_min = 0., SOC_max = 1., max_in
 # export PV, Load, Slack, Battery ...
 
 ## Define generic node
-function (gn::GenericNode)(dx, x, e_s, e_d, p, t)
+function (gn::GenericNode)(dx, x, e_d, p, t)
 	u_ILC = gn.ILC.current_background_power
 	u_LI = - gn.LI.kp * x[2] + x[3]
 
 	P_control = u_LI + u_ILC
 
-	F = total_flow(e_s, e_d)
+	F = 0
+	@inbounds for e in e_d
+		F += e[1]
+	end
 
 	if x[5] >= gn.SOC_max
 		F = min(0., F)
@@ -117,13 +120,16 @@ function (gn::GenericNode)(dx, x, e_s, e_d, p, t)
 end
 
 ## Define node dynamics depending on type
-function (pv::PV)(dx, x, e_s, e_d, p, t)
+function (pv::PV)(dx, x, e_d, p, t)
 	u_ILC = pv.ILC.current_background_power
 	u_LI = - pv.LI.kp * x[2] + x[3]
 
 	P_control = u_LI + u_ILC
 
-	F = total_flow(e_s, e_d)
+	F = 0
+	@inbounds for e in e_d
+		F += e[1]
+	end
 
 	if pv.max_inverter != 0. && P_control >= pv.max_inverter
 		F = max(- pv.max_inverter, F)
@@ -138,13 +144,16 @@ function (pv::PV)(dx, x, e_s, e_d, p, t)
 	nothing
 end
 
-function (load::Load)(dx, x, e_s, e_d, p, t)
+function (load::Load)(dx, x, e_d, p, t)
 	u_ILC = load.ILC.current_background_power
 	u_LI = - load.LI.kp * x[2] + x[3]
 
 	P_load = u_LI + u_ILC
 
-	F = total_flow(e_s, e_d)
+	F = 0
+	@inbounds for e in e_d
+		F += e[1]
+	end
 
 	dx[1] = x[2]
 	dx[2] = (- load.ξ(t) + P_load * load.η_load(t) + F) / load.M
@@ -154,13 +163,16 @@ function (load::Load)(dx, x, e_s, e_d, p, t)
 	nothing
 end
 
-function (slack::Slack)(dx, x, e_s, e_d, p, t)
+function (slack::Slack)(dx, x, e_d, p, t)
 	u_ILC = slack.ILC.current_background_power
 	u_LI = - slack.LI.kp * x[2] + x[3]
 
 	P_control = u_LI + u_ILC
 
-	F = total_flow(e_s, e_d)
+	F = 0
+	@inbounds for e in e_d
+		F += e[1]
+	end
 
 	if slack.max != 0. && P_control >= slack.max
 		F = max(-slack.max, F)
@@ -175,12 +187,15 @@ function (slack::Slack)(dx, x, e_s, e_d, p, t)
 	nothing
 end
 
-function (batt::Battery)(dx, x, e_s, e_d, p, t)
+function (batt::Battery)(dx, x, e_d, p, t)
 	u_ILC = batt.ILC.current_background_power
 	u_LI = - batt.LI.kp * x[2] + x[3]
 	P_control = u_LI + u_ILC
 
-	F = total_flow(e_s, e_d)
+	F = 0
+	@inbounds for e in e_d
+		F += e[1]
+	end
 
 	if x[5] >= batt.SOC_max
 		F = min(0., F)
@@ -207,13 +222,17 @@ function (batt::Battery)(dx, x, e_s, e_d, p, t)
 	nothing
 end
 
-function (ts::ThermalStorage)(dx, x, e_s, e_d, p, t)
+function (ts::ThermalStorage)(dx, x, e_d, p, t)
 	u_ILC = ts.ILC.current_background_power
 	u_LI = - ts.LI.kp * x[2] + x[3]
 
 	P_control = u_LI + u_ILC
 
-	F = total_flow(e_s, e_d)
+	F = 0
+	@inbounds for e in e_d
+		F += e[1]
+	end
+
 	if x[5] <= ts.SOC_min
 		F = max(0., F)
 	end

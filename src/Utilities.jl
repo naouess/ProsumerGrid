@@ -144,7 +144,7 @@ end
 # 	# title!("Initial convergence")
 # 	savefig(psum,"$dir/plots/demand_seconds_sum_hetero.png")
 # end
-# 
+#
 # plot(sol, vars = syms_containing(nd, "ϕ"), legend = true)
 # plot(sol, vars = syms_containing(nd, "integrated_LI"), legend = true)
 # plot(sol, vars = syms_containing(nd, "level"), legend = true)
